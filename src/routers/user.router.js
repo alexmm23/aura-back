@@ -1,6 +1,6 @@
 import { Router } from "express";
 
-import { getAllUsers } from '@/services/user.service';
+import { getAllUsers } from '../services/user.service.js';
 
 
 export const userRouter = Router();

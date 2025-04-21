@@ -1,7 +1,7 @@
 import express from 'express'
-import { userRouter } from './routers/user.router'
-import { errorHandler } from './middlewares/errors.middleware'
-import { checkRole } from './middlewares/roles.middleware'
+import { errorHandler } from './middlewares/errors.middleware.js'
+import { checkRole } from './middlewares/roles.middleware.js'
+import { userRouter } from './routers/user.router.js'
 
 
 const app = express()
