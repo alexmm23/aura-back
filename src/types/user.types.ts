@@ -14,6 +14,9 @@ export interface UserAttributes {
 }
 
 export interface UserCreationAttributes extends Omit<UserAttributes, 'id' | 'created_at'> {
+  name: string
+  lastname: string
+  email: string
   password: string
   role_id: number
   subscription_status?: 'cancelled' | 'none' | 'active' | 'expired'
