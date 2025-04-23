@@ -48,7 +48,7 @@ export const registerUser = async (userData: UserCreationAttributes): Promise<Us
     return newUser.toJSON() as UserAttributes
   } catch (error: any) {
     console.error('Error registering user:', error)
-    throw new Error('Error registering user: ' + error.message)
+    throw new Error(error.message)
   }
 }
 

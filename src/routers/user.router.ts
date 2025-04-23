@@ -17,7 +17,7 @@ userRouter.post('/create', async (req, res) => {
   try {
     const user = await registerUser(req.body)
     res.status(201).json(user)
-  } catch (error) {
-    res.status(500).json({ error: `Internal Server Error ${error}` })
+  } catch (error: any) {
+    res.status(500).json({ error: error.message })
   }
 })
