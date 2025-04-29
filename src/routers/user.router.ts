@@ -1,6 +1,8 @@
 import { Router } from 'express'
 
-import { getAllUsers, registerUser } from '../services/user.service.js'
+import { getAllUsers, loginUser, registerUser } from '../services/user.service.js'
+import { UserLoginAttributes } from '../types/user.types.js'
+import { authenticateToken } from '../middlewares/auth.middleware.js'
 
 export const userRouter = Router()
 
@@ -19,5 +21,38 @@ userRouter.post('/create', async (req, res) => {
     res.status(201).json(user)
   } catch (error: any) {
     res.status(500).json({ error: error.message })
+  }
+})
+
+// Iniciar sesión (login)
+userRouter.post('/login', async (req, res) => {
+  try {
+    const loginData: UserLoginAttributes = req.body
+
+    if (!loginData.email || !loginData.password) {
+      return res.status(400).json({ error: 'Email and password are required' })
+    }
+
+    const { token, user } = await loginUser(loginData)
+
+    res.status(200).json({
+      message: 'Login successful',
+      token,
+    })
+  } catch (error: any) {
+    res.status(401).json({ error: error.message })
+  }
+})
+
+// Ruta protegida que requiere autenticación
+userRouter.get('/profile', authenticateToken, async (req, res) => {
+  try {
+    // Accede a los datos del usuario autenticado
+    res.status(200).json({
+      message: 'User profile',
+      user: req.user, // El usuario está en 'req.user' gracias al middleware
+    })
+  } catch (error) {
+    res.status(500).json({ error: 'Internal Server Error' })
   }
 })
