@@ -1,6 +1,7 @@
 import { User } from '../models/user.model.js'
-import { UserAttributes, UserCreationAttributes } from '../types/user.types.js'
+import { UserAttributes, UserCreationAttributes, UserLoginAttributes } from '../types/user.types.js'
 import bcrypt from 'bcryptjs'
+import jwt from 'jsonwebtoken'
 export const getAllUsers = async (): Promise<UserAttributes[]> => {
   try {
     const users: Array<UserAttributes> = (
@@ -59,3 +60,63 @@ const hashPassword = async (password: string): Promise<string> => {
 const comparePassword = async (password: string, hashedPassword: string): Promise<boolean> => {
   return await bcrypt.compare(password, hashedPassword)
 }
+const generateToken = (user: UserAttributes): string => {
+  const secret = process.env.JWT_SECRET
+  const expiresIn = process.env.JWT_EXPIRES_IN || '1h'
+
+  if (!secret) {
+    throw new Error('JWT_SECRET is not defined in environment variables')
+  }
+
+  const payload = {
+    id: user.id,
+    email: user.email,
+    role_id: user.role_id, // o el campo correspondiente para el tipo de usuario
+  }
+
+  // Firmamos el token con una clave secreta y lo devolvemos
+  return jwt.sign(payload, secret, { expiresIn })
+}
+export const loginUser = async (
+  loginData: UserLoginAttributes
+): Promise<{ token: string; user: Partial<UserAttributes> }> => {
+  try {
+    const user = await User.findOne({
+      where: {
+        email: loginData.email,
+        deleted: false,
+      },
+    })
+
+    if (!user) {
+      throw new Error('Invalid email or password')
+    }
+
+    const isMatch = await comparePassword(
+      loginData.password,
+      user.getDataValue('password')
+    )
+
+    if (!isMatch) {
+      throw new Error('Invalid email or password')
+    }
+
+    const token = generateToken(user.toJSON() as UserAttributes)
+
+    // Elimina datos sensibles antes de devolver el usuario
+    const sanitizedUser = {
+      id: user.id,
+      name: user.name,
+      lastname: user.lastname,
+      email: user.email,
+      role_id: user.role_id,
+    }
+
+    return { token, user: sanitizedUser }
+  } catch (error: any) {
+    throw new Error(error.message)
+  }
+}
+
+
+
