@@ -2,6 +2,7 @@ import { User } from '../models/user.model.js'
 import { UserAttributes, UserCreationAttributes, UserLoginAttributes } from '../types/user.types.js'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
+import { sendEmail } from './email.service.js'
 export const getAllUsers = async (): Promise<UserAttributes[]> => {
   try {
     const users: Array<UserAttributes> = (
@@ -62,7 +63,7 @@ const comparePassword = async (password: string, hashedPassword: string): Promis
 }
 const generateToken = (user: UserAttributes): string => {
   const secret = process.env.JWT_SECRET
-  const expiresIn = process.env.JWT_EXPIRES_IN || '1h'
+  const expiresIn: string | number = process.env.JWT_EXPIRES_IN || '1h'
 
   if (!secret) {
     throw new Error('JWT_SECRET is not defined in environment variables')
@@ -75,11 +76,9 @@ const generateToken = (user: UserAttributes): string => {
   }
 
   // Firmamos el token con una clave secreta y lo devolvemos
-  return jwt.sign(payload, secret, { expiresIn })
+  return jwt.sign(payload, secret as string, { expiresIn })
 }
-export const loginUser = async (
-  loginData: UserLoginAttributes
-): Promise<{ token: string; user: Partial<UserAttributes> }> => {
+export const loginUser = async (loginData: UserLoginAttributes): Promise<{ token: string }> => {
   try {
     const user = await User.findOne({
       where: {
@@ -92,10 +91,7 @@ export const loginUser = async (
       throw new Error('Invalid email or password')
     }
 
-    const isMatch = await comparePassword(
-      loginData.password,
-      user.getDataValue('password')
-    )
+    const isMatch = await comparePassword(loginData.password, user.getDataValue('password'))
 
     if (!isMatch) {
       throw new Error('Invalid email or password')
@@ -103,20 +99,45 @@ export const loginUser = async (
 
     const token = generateToken(user.toJSON() as UserAttributes)
 
-    // Elimina datos sensibles antes de devolver el usuario
-    const sanitizedUser = {
-      id: user.id,
-      name: user.name,
-      lastname: user.lastname,
-      email: user.email,
-      role_id: user.role_id,
-    }
-
-    return { token, user: sanitizedUser }
+    return { token }
   } catch (error: any) {
     throw new Error(error.message)
   }
 }
 
+export const resetPassword = async (email: string): Promise<void> => {
+  try {
+    const user = await User.findOne({
+      where: {
+        email,
+        deleted: false,
+      },
+    })
 
+    if (!user) {
+      throw new Error('User not found')
+    }
+    const newPassword = generateRandomPassword()
+    const hashedPassword = await hashPassword(newPassword)
+    await user.update({ password: hashedPassword })
+    const emailContent = `
+      <h1>Password Reset</h1>
+      <p>Your new password is: ${newPassword}</p>
+      <p>Please change it after logging in.</p>
+    `
+    await sendEmail(email, 'Password Reset', emailContent)
+  } catch (error: any) {
+    throw new Error(error.message)
+  }
+}
 
+const generateRandomPassword = (): string => {
+  const length = 8
+  const charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()'
+  let password = ''
+  for (let i = 0; i < length; i++) {
+    const randomIndex = Math.floor(Math.random() * charset.length)
+    password += charset[randomIndex]
+  }
+  return password
+}

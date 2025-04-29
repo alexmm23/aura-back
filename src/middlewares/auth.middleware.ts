@@ -6,7 +6,7 @@ import { UserAttributes } from '../types/user.types.js'
 export const authenticateToken = async (
   req: Request & { user?: UserAttributes },
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   const authHeader = req.headers['authorization']
   const token = authHeader && authHeader.split(' ')[1] // El token viene después de 'Bearer'

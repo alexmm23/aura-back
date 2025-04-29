@@ -1,8 +1,9 @@
-import { Router } from 'express'
+import { Router, Request, Response } from 'express'
 
-import { getAllUsers, loginUser, registerUser } from '../services/user.service.js'
+import { getAllUsers, loginUser, registerUser, resetPassword } from '../services/user.service.js'
 import { UserLoginAttributes } from '../types/user.types.js'
 import { authenticateToken } from '../middlewares/auth.middleware.js'
+import { User } from '../types/roles.types.js'
 
 export const userRouter = Router()
 
@@ -33,7 +34,7 @@ userRouter.post('/login', async (req, res) => {
       return res.status(400).json({ error: 'Email and password are required' })
     }
 
-    const { token, user } = await loginUser(loginData)
+    const { token } = await loginUser(req.body)
 
     res.status(200).json({
       message: 'Login successful',
@@ -41,6 +42,25 @@ userRouter.post('/login', async (req, res) => {
     })
   } catch (error: any) {
     res.status(401).json({ error: error.message })
+  }
+})
+
+userRouter.post('/reset-password/', async (req, res) => {
+  try {
+    const { email } = req.body
+
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' })
+    }
+
+    const user = await resetPassword(email)
+
+    res.status(200).json({
+      message: 'Password reset email sent',
+      user,
+    })
+  } catch (error: any) {
+    res.status(500).json({ error: error.message })
   }
 })
 
