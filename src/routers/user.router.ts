@@ -1,11 +1,11 @@
 import { Router, Request, Response } from 'express'
 
-import { getAllUsers, loginUser, registerUser, resetPassword } from '../services/user.service.js'
-import { UserLoginAttributes } from '../types/user.types.js'
-import { authenticateToken } from '../middlewares/auth.middleware.js'
-import { User } from '../types/roles.types.js'
+import { getAllUsers, loginUser, registerUser, resetPassword } from '@/services/user.service.js'
+import { UserAttributes, UserLoginAttributes } from '@/types/user.types.js'
+import { authenticateToken } from '@/middlewares/auth.middleware.js'
 
-export const userRouter = Router()
+const userRouter = Router()
+
 
 userRouter.get('/', async (req, res) => {
   try {
@@ -26,12 +26,12 @@ userRouter.post('/create', async (req, res) => {
 })
 
 // Iniciar sesión (login)
-userRouter.post('/login', async (req, res) => {
+userRouter.post('/login', async (req: Request, res: Response) => {
   try {
     const loginData: UserLoginAttributes = req.body
 
     if (!loginData.email || !loginData.password) {
-      return res.status(400).json({ error: 'Email and password are required' })
+      res.status(400).json({ error: 'Email and password are required' })
     }
 
     const { token } = await loginUser(req.body)
@@ -45,12 +45,12 @@ userRouter.post('/login', async (req, res) => {
   }
 })
 
-userRouter.post('/reset-password/', async (req, res) => {
+userRouter.post('/reset-password/', async (req: Request, res: Response) => {
   try {
     const { email } = req.body
 
     if (!email) {
-      return res.status(400).json({ error: 'Email is required' })
+      res.status(400).json({ error: 'Email is required' })
     }
 
     const user = await resetPassword(email)
@@ -65,14 +65,22 @@ userRouter.post('/reset-password/', async (req, res) => {
 })
 
 // Ruta protegida que requiere autenticación
-userRouter.get('/profile', authenticateToken, async (req, res) => {
+userRouter.get('/profile', authenticateToken, async (req: Request & { user?: UserAttributes}, res) => {
   try {
-    // Accede a los datos del usuario autenticado
+    const { user } = req 
+   
+    if (!user) {
+      res.status(401).json({ error: 'Unauthorized' })
+    }
+
     res.status(200).json({
       message: 'User profile',
-      user: req.user, // El usuario está en 'req.user' gracias al middleware
+      user,
     })
-  } catch (error) {
-    res.status(500).json({ error: 'Internal Server Error' })
+  } catch (error: any) {
+    res.status(500).json({ error: error.message })
   }
 })
+
+
+export { userRouter }
