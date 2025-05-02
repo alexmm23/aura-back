@@ -1,0 +1,27 @@
+import jwt from 'jsonwebtoken'
+import { UserAttributes } from '@/types/user.types.js'
+import env from '@/config/enviroment.js'
+import { User } from '@/models/user.model.js'
+
+// Generar un token JWT para el usuario (Access Token)
+export const generateToken = (user: UserAttributes): string => {
+  const { JWT_SECRET: secret } = env // Obtener la clave secreta del entorno
+  const { AT_EXPIRATION: expiresIn } = env
+
+  if (!secret) {
+    throw new Error('JWT_SECRET is not defined in environment variables')
+  }
+  const { id, email, role_id } = user // Desestructurar el id y el email del usuario
+  const payload = {
+    id,
+    email,
+    role_id,
+  } as jwt.JwtPayload
+
+  // Firmamos el token con una clave secreta y lo devolvemos
+  return jwt.sign(payload as any, secret, { expiresIn })
+}
+export const generateRefreshToken = (user: any) => {
+  const { JWT_REFRESH_SECRET, RT_EXPIRATION } = env // Obtener la clave secreta del entorno
+  return jwt.sign(user, JWT_REFRESH_SECRET, { expiresIn: RT_EXPIRATION }) // Firmamos el token con una clave secreta y lo devolvemos
+}
