@@ -62,16 +62,17 @@ userRouter.post('/token/refresh', async (req: Request, res: Response) => {
     const decoded = jwt.verify(refreshToken, JWT_REFRESH_SECRET) as jwt.JwtPayload
 
     // Verificar si el refresh token está en la base de datos
-    const user = await User.findById(decoded.id)
+    const user = await User.findOne({
+      where: {
+        id: decoded.id,
+        deleted: false,
+      },
+    })
     if (!user || user.refresh_token !== refreshToken) {
       res.status(403).json({ error: 'Refresh token inválido' })
     }
-
-    // Generar un nuevo access token
-    const accessToken = generateToken(user)
-    // Generar un nuevo refresh token
-    const newRefreshToken = generateRefreshToken(user)
-
+    const newRefreshToken = generateRefreshToken(user.toJSON() as UserAttributes)
+    const accessToken = generateToken(user.toJSON() as UserAttributes)
     user.refresh_token = newRefreshToken
     await user.save()
     res.json({ accessToken, refreshToken: newRefreshToken })

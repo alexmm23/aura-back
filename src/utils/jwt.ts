@@ -16,8 +16,7 @@ export const generateToken = (user: UserAttributes): string => {
     id,
     email,
     role_id,
-  } as jwt.JwtPayload
-
+  }
   // Firmamos el token con una clave secreta y lo devolvemos
   return jwt.sign(payload as any, secret, { expiresIn })
 }
