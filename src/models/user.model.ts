@@ -95,6 +95,16 @@ export const User = sequelize.define(
       defaultValue: false,
       allowNull: false,
     },
+    refresh_token: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      validate: {
+        is: {
+          args: /^[a-zA-Z0-9_.-]*$/,
+          msg: 'Refresh token can only contain letters, numbers, underscores, dots, and dashes',
+        },
+      },
+    },
   },
   {
     tableName: 'users',
