@@ -2,6 +2,7 @@
 import jwt from 'jsonwebtoken'
 import { Request, Response, NextFunction } from 'express'
 import { UserAttributes } from '@/types/user.types.js'
+import env from '@/config/enviroment'
 
 export const authenticateToken = async (
   req: Request & { user?: UserAttributes },
@@ -9,8 +10,8 @@ export const authenticateToken = async (
   next: NextFunction,
 ) => {
   const authHeader = req.headers['authorization']
-  const token = authHeader && authHeader.split(' ')[1] as string // Obtener el token del encabezado de autorización
-  const JWT_SECRET = process.env.JWT_SECRET || 'default_secret' // Clave secreta para verificar el token
+  const token = authHeader && (authHeader.split(' ')[1] as string) // Obtener el token del encabezado de autorización
+  const { JWT_SECRET } = env // Obtener la clave secreta del entorno
   if (!token) {
     res.status(401).json({ error: 'Token not provided' }) // Token no proporcionado
     return
