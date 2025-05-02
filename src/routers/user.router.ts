@@ -1,11 +1,14 @@
 import { Router, Request, Response } from 'express'
 
-import { getAllUsers, loginUser, registerUser, resetPassword } from '@/services/user.service.js'
-import { UserAttributes, UserLoginAttributes } from '@/types/user.types.js'
-import { authenticateToken } from '@/middlewares/auth.middleware.js'
+import { getAllUsers, loginUser, registerUser, resetPassword } from '@/services/user.service'
+import { UserAttributes, UserLoginAttributes } from '@/types/user.types'
+import { authenticateToken } from '@/middlewares/auth.middleware'
+import jwt from 'jsonwebtoken'
+import { User } from '@/models/user.model'
+import env from '@/config/enviroment'
+import { generateRefreshToken, generateToken } from '@/utils/jwt'
 
 const userRouter = Router()
-
 
 userRouter.get('/', async (req, res) => {
   try {
@@ -34,12 +37,44 @@ userRouter.post('/login', async (req: Request, res: Response) => {
       res.status(400).json({ error: 'Email and password are required' })
     }
 
-    const { token } = await loginUser(req.body)
+    const { token, refreshToken } = await loginUser(req.body)
 
     res.status(200).json({
       message: 'Login successful',
       token,
+      refreshToken,
     })
+  } catch (error: any) {
+    res.status(401).json({ error: error.message })
+  }
+})
+
+userRouter.post('/token/refresh', async (req: Request, res: Response) => {
+  try {
+    const { refreshToken } = req.body
+
+    if (!refreshToken) {
+      res.status(401).json({ error: 'Refresh token requerido' })
+    }
+    const { JWT_REFRESH_SECRET } = env
+
+    // Verificar el refresh token
+    const decoded = jwt.verify(refreshToken, JWT_REFRESH_SECRET) as jwt.JwtPayload
+
+    // Verificar si el refresh token está en la base de datos
+    const user = await User.findById(decoded.id)
+    if (!user || user.refresh_token !== refreshToken) {
+      res.status(403).json({ error: 'Refresh token inválido' })
+    }
+
+    // Generar un nuevo access token
+    const accessToken = generateToken(user)
+    // Generar un nuevo refresh token
+    const newRefreshToken = generateRefreshToken(user)
+
+    user.refresh_token = newRefreshToken
+    await user.save()
+    res.json({ accessToken, refreshToken: newRefreshToken })
   } catch (error: any) {
     res.status(401).json({ error: error.message })
   }
@@ -65,22 +100,25 @@ userRouter.post('/reset-password/', async (req: Request, res: Response) => {
 })
 
 // Ruta protegida que requiere autenticación
-userRouter.get('/profile', authenticateToken, async (req: Request & { user?: UserAttributes}, res) => {
-  try {
-    const { user } = req 
-   
-    if (!user) {
-      res.status(401).json({ error: 'Unauthorized' })
+userRouter.get(
+  '/profile',
+  authenticateToken,
+  async (req: Request & { user?: UserAttributes }, res) => {
+    try {
+      const { user } = req
+
+      if (!user) {
+        res.status(401).json({ error: 'Unauthorized' })
+      }
+
+      res.status(200).json({
+        message: 'User profile',
+        user,
+      })
+    } catch (error: any) {
+      res.status(500).json({ error: error.message })
     }
-
-    res.status(200).json({
-      message: 'User profile',
-      user,
-    })
-  } catch (error: any) {
-    res.status(500).json({ error: error.message })
-  }
-})
-
+  },
+)
 
 export { userRouter }

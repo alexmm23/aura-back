@@ -3,6 +3,8 @@ import { UserAttributes, UserCreationAttributes, UserLoginAttributes } from '../
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import { sendEmail } from './email.service.js'
+import env from '@/config/enviroment.js'
+import { generateRefreshToken, generateToken } from '@/utils/jwt.js'
 export const getAllUsers = async (): Promise<UserAttributes[]> => {
   try {
     const users: Array<UserAttributes> = (
@@ -11,7 +13,7 @@ export const getAllUsers = async (): Promise<UserAttributes[]> => {
           deleted: false,
         },
       })
-    ).map((user) => user.toJSON() as UserAttributes)
+    ).map((user: any) => user.toJSON() as UserAttributes)
     return users
   } catch (error: any) {
     console.error('Error fetching users:', error)
@@ -47,7 +49,7 @@ export const registerUser = async (userData: UserCreationAttributes): Promise<Us
       subscription_start: userData.subscription_start,
       subscription_end: userData.subscription_end,
     })
-    return newUser.toJSON() as UserAttributes
+    return newUser.toJSON() as UserAttributes // Devolver el nuevo usuario como un objeto JSON
   } catch (error: any) {
     console.error('Error registering user:', error)
     throw new Error(error.message)
@@ -61,24 +63,10 @@ const hashPassword = async (password: string): Promise<string> => {
 const comparePassword = async (password: string, hashedPassword: string): Promise<boolean> => {
   return await bcrypt.compare(password, hashedPassword)
 }
-const generateToken = (user: UserAttributes): string => {
-  const secret = process.env.JWT_SECRET
-  const expiresIn: string | number = process.env.JWT_EXPIRES_IN || '1h'
 
-  if (!secret) {
-    throw new Error('JWT_SECRET is not defined in environment variables')
-  }
-
-  const payload = {
-    id: user.id,
-    email: user.email,
-    role_id: user.role_id, // o el campo correspondiente para el tipo de usuario
-  }
-
-  // Firmamos el token con una clave secreta y lo devolvemos
-  return jwt.sign(payload, secret as string, { expiresIn })
-}
-export const loginUser = async (loginData: UserLoginAttributes): Promise<{ token: string }> => {
+export const loginUser = async (
+  loginData: UserLoginAttributes,
+): Promise<{ token: string; refreshToken: string }> => {
   try {
     const user = await User.findOne({
       where: {
@@ -98,8 +86,10 @@ export const loginUser = async (loginData: UserLoginAttributes): Promise<{ token
     }
 
     const token = generateToken(user.toJSON() as UserAttributes)
+    const refreshToken = generateRefreshToken(user.toJSON() as UserAttributes)
+    await user.update({ refresh_token: refreshToken }) // Guardar el refresh token en la base de datos
 
-    return { token }
+    return { token, refreshToken }
   } catch (error: any) {
     throw new Error(error.message)
   }
