@@ -87,7 +87,8 @@ export const loginUser = async (
 
     const token = generateToken(user.toJSON() as UserAttributes)
     const refreshToken = generateRefreshToken(user.toJSON() as UserAttributes)
-    await user.update({ refresh_token: refreshToken }) // Guardar el refresh token en la base de datos
+    user.refresh_token = refreshToken // Guardar el refresh token en el objeto user
+    await user.save() // Guardar el objeto user con el refresh token en la base de datos
 
     return { token, refreshToken }
   } catch (error: any) {

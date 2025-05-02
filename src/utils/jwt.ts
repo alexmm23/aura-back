@@ -22,5 +22,16 @@ export const generateToken = (user: UserAttributes): string => {
 }
 export const generateRefreshToken = (user: any) => {
   const { JWT_REFRESH_SECRET, RT_EXPIRATION } = env // Obtener la clave secreta del entorno
-  return jwt.sign(user, JWT_REFRESH_SECRET, { expiresIn: RT_EXPIRATION }) // Firmamos el token con una clave secreta y lo devolvemos
+
+  if (!JWT_REFRESH_SECRET) {
+    throw new Error('JWT_REFRESH_SECRET is not defined in environment variables')
+  }
+
+  const payload = {
+    id: user.id,
+    email: user.email,
+    role_id: user.role_id,
+  }
+
+  return jwt.sign(payload, JWT_REFRESH_SECRET, { expiresIn: RT_EXPIRATION }) // Firmamos el token con una clave secreta y lo devolvemos
 }

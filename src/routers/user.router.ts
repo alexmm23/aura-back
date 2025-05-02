@@ -55,6 +55,7 @@ userRouter.post('/token/refresh', async (req: Request, res: Response) => {
 
     if (!refreshToken) {
       res.status(401).json({ error: 'Refresh token requerido' })
+      return
     }
     const { JWT_REFRESH_SECRET } = env
 
@@ -70,9 +71,11 @@ userRouter.post('/token/refresh', async (req: Request, res: Response) => {
     })
     if (!user || user.refresh_token !== refreshToken) {
       res.status(403).json({ error: 'Refresh token inválido' })
+      return
     }
     const newRefreshToken = generateRefreshToken(user.toJSON() as UserAttributes)
     const accessToken = generateToken(user.toJSON() as UserAttributes)
+    // console.log('newRefreshToken', newRefreshToken)
     user.refresh_token = newRefreshToken
     await user.save()
     res.json({ accessToken, refreshToken: newRefreshToken })
