@@ -61,16 +61,18 @@ userRouter.post('/token/refresh', async (req: Request, res: Response) => {
 
     // Verificar el refresh token
     const decoded = jwt.verify(refreshToken, JWT_REFRESH_SECRET) as jwt.JwtPayload
-
-    // Verificar si el refresh token está en la base de datos
     const user = await User.findOne({
       where: {
         id: decoded.id,
         deleted: false,
       },
     })
-    if (!user || user.refresh_token !== refreshToken) {
-      res.status(403).json({ error: 'Refresh token inválido' })
+    if (!user) {
+      res.status(404).json({ error: 'User not found' })
+      return
+    }
+    if (user.refresh_token !== refreshToken) {
+      res.status(401).json({ error: 'Invalid refresh token' })
       return
     }
     const newRefreshToken = generateRefreshToken(user.toJSON() as UserAttributes)
@@ -84,6 +86,29 @@ userRouter.post('/token/refresh', async (req: Request, res: Response) => {
   }
 })
 
+userRouter.post('/token/verify', async (req: Request, res: Response) => {
+  try {
+    const { JWT_SECRET } = env
+    const { token } = req.body
+    if (!token) {
+      res.status(400).json({ error: 'Refresh token is required' })
+      return
+    }
+
+    const decoded = jwt.verify(token, JWT_SECRET) as jwt.JwtPayload
+
+    if (!decoded.iat || !decoded.exp) {
+      throw new Error('Token is missing required fields')
+    }
+
+    const expired = decoded.exp < Math.floor(Date.now() / 1000)
+    res.status(200).json({ expired })
+  } catch (error: any) {
+    if (error.name === 'TokenExpiredError') {
+      res.status(403).json({ expired: true })
+    }
+  }
+})
 userRouter.post('/reset-password/', async (req: Request, res: Response) => {
   try {
     const { email } = req.body
