@@ -14,7 +14,7 @@ const env = {
   JWT_SECRET: process.env.JWT_SECRET || 'secret',
   JWT_REFRESH_SECRET: process.env.JWT_REFRESH_SECRET || 'refresh_secret',
   CORS_ORIGIN: process.env.CORS_ORIGIN || 'http://localhost:8081',
-  AT_EXPIRATION: process.env.AT_EXPIRATION || '15m',
+  AT_EXPIRATION: process.env.AT_EXPIRATION || '1d',
   RT_EXPIRATION: process.env.RT_EXPIRATION || '7d',
 }
 export default env
