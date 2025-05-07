@@ -109,7 +109,7 @@ userRouter.post('/token/verify', async (req: Request, res: Response) => {
     }
   }
 })
-userRouter.post('/reset-password/', async (req: Request, res: Response) => {
+userRouter.post('/reset-password', async (req: Request, res: Response) => {
   try {
     const { email } = req.body
 
