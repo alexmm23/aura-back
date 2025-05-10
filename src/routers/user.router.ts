@@ -200,7 +200,7 @@ userRouter.patch(
   },
 )
 userRouter.delete(
-  '/delete',
+  '/delete/:id',
   authenticateToken,
   async (req: Request & { user?: UserAttributes }, res) => {
     try {
@@ -211,11 +211,29 @@ userRouter.delete(
         return
       }
 
-      await User.destroy({
+      const { id } = req.params
+      if (!id) {
+        res.status(400).json({ error: 'User ID is required' })
+        return
+      }
+
+      await User.update(
+        { deleted: true },
+        {
+          where: {
+            id,
+          },
+        },
+      )
+      const deletedUser = await User.findOne({
         where: {
-          id: user.id,
+          id,
         },
       })
+      if (!deletedUser) {
+        res.status(404).json({ error: ' User not found' })
+        return
+      }
 
       res.status(200).json({
         message: 'User deleted',
