@@ -1,6 +1,12 @@
 import { Router, Request, Response } from 'express'
 
-import { getAllUsers, loginUser, registerUser, resetPassword } from '@/services/user.service'
+import {
+  getAllUsers,
+  loginUser,
+  registerUser,
+  resetPassword,
+  hashPassword,
+} from '@/services/user.service'
 import { UserAttributes, UserLoginAttributes } from '@/types/user.types'
 import { authenticateToken } from '@/middlewares/auth.middleware'
 import jwt from 'jsonwebtoken'
@@ -150,4 +156,102 @@ userRouter.get(
   },
 )
 
+userRouter.patch(
+  '/update',
+  authenticateToken,
+  async (req: Request & { user?: UserAttributes }, res) => {
+    try {
+      const { user } = req
+
+      if (!user) {
+        res.status(401).json({ error: 'Unauthorized' })
+        return
+      }
+      console.log('user', user)
+      const { id, ...updateData } = req.body
+      if (updateData.password) {
+        const hashedPassword = await hashPassword(updateData.password)
+        updateData.password = hashedPassword
+      }
+
+      const [affectedRows] = await User.update(updateData, {
+        where: {
+          id: user.id,
+        },
+      })
+      if (affectedRows === 0) {
+        res.status(404).json({ error: 'User not found' })
+        return
+      }
+
+      const updatedUser = await User.findOne({
+        where: {
+          id: user.id,
+        },
+      })
+
+      res.status(200).json({
+        message: 'User updated successfully',
+        user: updatedUser as UserAttributes,
+      })
+    } catch (error: any) {
+      res.status(500).json({ error: error.message })
+    }
+  },
+)
+userRouter.delete(
+  '/delete',
+  authenticateToken,
+  async (req: Request & { user?: UserAttributes }, res) => {
+    try {
+      const { user } = req
+
+      if (!user) {
+        res.status(401).json({ error: 'Unauthorized' })
+        return
+      }
+
+      await User.destroy({
+        where: {
+          id: user.id,
+        },
+      })
+
+      res.status(200).json({
+        message: 'User deleted',
+      })
+    } catch (error: any) {
+      res.status(500).json({ error: error.message })
+    }
+  },
+)
+userRouter.get(
+  '/logout',
+  authenticateToken,
+  async (req: Request & { user?: UserAttributes }, res) => {
+    try {
+      const { user } = req
+
+      if (!user) {
+        res.status(401).json({ error: 'Unauthorized' })
+        return
+      }
+
+      await User.update(
+        { refresh_token: null },
+        {
+          where: {
+            id: user.id,
+          },
+        },
+      )
+
+      res.status(200).json({
+        message: 'User logged out',
+      })
+    } catch (error: any) {
+      res.status(500).json({ error: error.message })
+    }
+  },
+)
 export { userRouter }
