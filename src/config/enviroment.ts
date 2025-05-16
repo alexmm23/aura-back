@@ -1,7 +1,14 @@
 import * as dotenv from 'dotenv'
+//Cargar credenciales de Google desde el archivo classroom_web_credentials.json
+import * as fs from 'fs'
 
 // Cargar variables de entorno desde el archivo .env
 dotenv.config()
+
+// Cargar credenciales de Google desde el archivo classroom_web_credentials.json
+const credentialsPath = 'classroom_web_credentials.json'
+const credentials = JSON.parse(fs.readFileSync(credentialsPath, 'utf-8'))
+const { client_id, client_secret, redirect_uris } = credentials.web
 
 // Validar y limpiar las variables de entorno
 const env = {
@@ -16,5 +23,8 @@ const env = {
   CORS_ORIGIN: process.env.CORS_ORIGIN || 'http://localhost:8081',
   AT_EXPIRATION: process.env.AT_EXPIRATION || '1d',
   RT_EXPIRATION: process.env.RT_EXPIRATION || '7d',
+  GOOGLE_CLIENT_ID: client_id || process.env.GOOGLE_CLIENT_ID || '',
+  GOOGLE_CLIENT_SECRET: client_secret || process.env.GOOGLE_CLIENT_SECRET || '',
+  GOOGLE_REDIRECT_URI: redirect_uris || process.env.GOOGLE_REDIRECT_URIS || '',
 }
 export default env
