@@ -1,5 +1,6 @@
 import { DataTypes } from 'sequelize'
 import { sequelize } from '../config/database.js'
+
 export const UserAccount = sequelize.define(
   'UserAccount',
   {
@@ -41,7 +42,7 @@ export const UserAccount = sequelize.define(
       type: DataTypes.TEXT,
       allowNull: false,
     },
-    creater_at: {
+    created_at: {
       type: DataTypes.DATE,
       allowNull: false,
       defaultValue: DataTypes.NOW,
@@ -58,5 +59,6 @@ export const UserAccount = sequelize.define(
   },
   {
     tableName: 'user_accounts',
+    timestamps: false,
   },
 )
