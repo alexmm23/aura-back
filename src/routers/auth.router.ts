@@ -34,7 +34,13 @@ authRouter.post('/token/refresh', async (req: Request, res: Response) => {
     const decoded = jwt.verify(refreshToken, env.JWT_REFRESH_SECRET) as jwt.JwtPayload
     const user = await User.findOne({ where: { id: decoded.id, deleted: false } })
 
-    if (!user || user.refresh_token !== refreshToken) {
+    if (!user) {
+      res.status(404).json({ error: 'User not found' })
+      return
+    }
+    console.log('user', user)
+    console.log('refreshToken', refreshToken)
+    if (user.refresh_token != refreshToken) {
       res.status(401).json({ error: 'Invalid refresh token' })
       return
     }

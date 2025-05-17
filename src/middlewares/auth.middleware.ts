@@ -10,8 +10,12 @@ export const authenticateToken = async (
   next: NextFunction,
 ) => {
   const authHeader = req.headers['authorization']
-  const token = authHeader && (authHeader.split(' ')[1] as string) // Obtener el token del encabezado de autorización
   const { JWT_SECRET } = env // Obtener la clave secreta del entorno
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    res.status(401).json({ error: 'Authorization header missing or malformed' }) // Encabezado de autorización faltante o malformado
+    return
+  }
+  const token = authHeader.split(' ')[1] as string // Obtener el token del encabezado de autorización
   if (!token) {
     res.status(401).json({ error: 'Token not provided' }) // Token no proporcionado
     return
@@ -19,8 +23,10 @@ export const authenticateToken = async (
 
   // Verificar el token
   jwt.verify(token, JWT_SECRET, (err, user) => {
+    console.log('err', err)
     if (err) {
       res.status(403).json({ error: 'Invalid or expired token' }) // Token inválido o expirado
+      return
     }
 
     // Almacenar la información del usuario en la solicitud
