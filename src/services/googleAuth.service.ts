@@ -9,7 +9,11 @@ const oauth2Client = new google.auth.OAuth2(
   GOOGLE_REDIRECT_URI,
 )
 export const getGoogleAuthUrl = ({ state }: { state: string }) => {
-  const scopes = ['https://www.googleapis.com/auth/classroom.courses.readonly']
+  const scopes = [
+    'https://www.googleapis.com/auth/classroom.courses.readonly',
+    'https://www.googleapis.com/auth/classroom.coursework.me.readonly',
+    // agrega otros si necesitas
+  ]
   const url = oauth2Client.generateAuthUrl({
     access_type: 'offline',
     scope: scopes,
