@@ -4,6 +4,7 @@ import { authRouter } from './routers/auth.router.js'
 import { googleAuthRouter } from './routers/googleAuth.router.js'
 import cors from 'cors'
 import dotenv from 'dotenv'
+import { studentRouter } from './routers/student.router.js'
 dotenv.config()
 const app = express()
 
@@ -23,7 +24,7 @@ app.use('/api/users', userRouter)
 app.use('/api/auth', authRouter)
 // src/index.ts o src/app.ts
 app.use('/api', googleAuthRouter)
-
+app.use('/api/student', studentRouter)
 app.listen(3000, () => {
   console.log('Servidor corriendo en http://localhost:3000')
 })
