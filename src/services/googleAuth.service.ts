@@ -1,5 +1,6 @@
 import { google } from 'googleapis'
 import env from '@/config/enviroment'
+import { UserAccount } from '@/models/userAccount.model'
 
 const { GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI } = env
 
@@ -34,4 +35,32 @@ export const getTokensFromCode = async (code: string) => {
 export const setCredentials = (tokens: any) => {
   oauth2Client.setCredentials(tokens)
   return oauth2Client
+}
+
+export const getNewAccessToken = async (userId: number | undefined) => {
+  const userAccount = await UserAccount.findOne({
+    where: {
+      user_id: userId,
+      platform: 'google',
+    },
+  })
+  if (!userAccount) {
+    throw new Error('User account not found')
+  }
+  const { refresh_token } = userAccount
+  oauth2Client.setCredentials({ refresh_token })
+  const { credentials } = await oauth2Client.refreshAccessToken()
+  await UserAccount.update(
+    {
+      access_token: credentials.access_token,
+      expiry_date: credentials.expiry_date,
+    },
+    {
+      where: {
+        user_id: userId,
+        platform: 'google',
+      },
+    },
+  )
+  return credentials
 }

@@ -61,9 +61,16 @@ router.get(
         return
       }
       if (existingAccount) {
-        // Si ya existe, actualiza el token
+        const expiryDate = new Date(
+          tokens.expiry_date ? tokens.expiry_date : Date.now() + 3600 * 1000,
+        )
+
         await UserAccount.update(
-          { access_token: tokens.access_token, refresh_token: tokens.refresh_token },
+          {
+            access_token: tokens.access_token,
+            refresh_token: tokens.refresh_token,
+            expiry_date: expiryDate,
+          },
           { where: { user_id: userId, platform: 'google' } },
         )
       } else {

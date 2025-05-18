@@ -3,19 +3,26 @@ import { authenticateToken } from '@/middlewares/auth.middleware'
 import { getClassroomAssignments } from '@/services/classroom.service'
 import { UserAttributes } from '@/types/user.types'
 import { UserAccount } from '@/models/userAccount.model'
+import { getNewAccessToken } from '@/services/googleAuth.service'
 const studentRouter = Router()
 studentRouter.use(authenticateToken)
 
 studentRouter.get('/homework', async (req: Request & { user?: UserAttributes }, res: Response) => {
   try {
     const { user } = req
-    const { access_token: accessToken } = await UserAccount.findOne({
+    if (!user) {
+      res.status(401).json({ error: 'Unauthorized' })
+      return
+    }
+    const { access_token: accessToken, expiry_date } = await UserAccount.findOne({
       where: {
         user_id: user?.id,
         platform: 'google',
       },
     })
-    console.log('Access Token:', accessToken)
+    if (expiry_date && new Date(expiry_date) < new Date()) {
+      getNewAccessToken(user.id)
+    }
     if (!accessToken) {
       res.status(401).json({ error: 'Unauthorized' })
     }
