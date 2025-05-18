@@ -12,7 +12,7 @@ export const getGoogleAuthUrl = ({ state }: { state: string }) => {
   const scopes = [
     'https://www.googleapis.com/auth/classroom.courses.readonly',
     'https://www.googleapis.com/auth/classroom.coursework.me.readonly',
-    // agrega otros si necesitas
+    'https://www.googleapis.com/auth/classroom.student-submissions.me.readonly',
   ]
   const url = oauth2Client.generateAuthUrl({
     access_type: 'offline',
