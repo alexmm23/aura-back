@@ -26,5 +26,8 @@ const env = {
   GOOGLE_CLIENT_ID: client_id || process.env.GOOGLE_CLIENT_ID || '',
   GOOGLE_CLIENT_SECRET: client_secret || process.env.GOOGLE_CLIENT_SECRET || '',
   GOOGLE_REDIRECT_URI: redirect_uris || process.env.GOOGLE_REDIRECT_URIS || '',
+  API_BASE_PATH: process.env.API_BASE_PATH || '/api',
+  NODE_ENV: process.env.NODE_ENV || 'development',
+  SERVER_URL: process.env.SERVER_URL || `http://localhost:${process.env.PORT || 3000}`,
 }
 export default env
