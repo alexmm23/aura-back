@@ -6,6 +6,8 @@ import { authenticateToken } from '@/middlewares/auth.middleware'
 import { UserAttributes } from '@/types/user.types'
 import { googleAuthMiddleware } from '@/middlewares/googleAuth.middleware'
 import { User } from '@/models/user.model'
+import env from '@/config/enviroment'
+
 const router = Router()
 
 // Redireccionar a Google
@@ -81,10 +83,11 @@ router.get(
           refresh_token: tokens.refresh_token,
           username: email,
           password: password,
+          expiry_date: new Date(tokens.expiry_date ? tokens.expiry_date : Date.now() + 3600 * 1000),
         })
       }
 
-      res.redirect('http://localhost:8081/profile')
+      res.redirect(`${env.API_BASE_PATH}/profile`)
     } catch (error: any) {
       res.status(500).json({ error: error.message })
     }
