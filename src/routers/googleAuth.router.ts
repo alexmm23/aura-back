@@ -87,7 +87,7 @@ router.get(
         })
       }
 
-      res.redirect(`${env.API_BASE_PATH}/profile`)
+      res.redirect(`${env.FRONTEND_URL}/profile`)
     } catch (error: any) {
       res.status(500).json({ error: error.message })
     }

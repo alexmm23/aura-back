@@ -28,6 +28,7 @@ const env = {
   GOOGLE_REDIRECT_URI: redirect_uris || process.env.GOOGLE_REDIRECT_URIS || '',
   API_BASE_PATH: process.env.API_BASE_PATH || '/api',
   NODE_ENV: process.env.NODE_ENV || 'development',
+  FRONTEND_URL: process.env.FRONTEND_URL || 'http://localhost:8081',
   SERVER_URL: process.env.SERVER_URL || `http://localhost:${process.env.PORT || 3000}`,
 }
 export default env
