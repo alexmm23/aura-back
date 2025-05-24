@@ -7,7 +7,7 @@ const router = Router()
 const clientId = process.env.MS_CLIENT_ID
 const clientSecret = process.env.MS_CLIENT_SECRET
 const tenantId = process.env.MS_TENANT_ID
-const redirectUri = 'http://localhost:3000/auth/microsoft/callback'
+const redirectUri = 'http://localhost:3000/api/auth/microsoft/callback'
 const scopes = [
   'openid',
   'profile',
