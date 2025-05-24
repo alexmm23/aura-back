@@ -5,7 +5,7 @@ import { googleAuthRouter } from './routers/googleAuth.router.js'
 import cors from 'cors'
 import { studentRouter } from './routers/student.router.js'
 import env from './config/enviroment.js'
-
+import  oauthRouter  from './routers/oauth.router'
 const app = express()
 const { API_BASE_PATH, CORS_ORIGIN, PORT } = env
 
@@ -25,7 +25,7 @@ app.use(`${API_BASE_PATH}/users`, userRouter)
 app.use(`${API_BASE_PATH}/auth`, authRouter)
 app.use(API_BASE_PATH, googleAuthRouter)
 app.use(`${API_BASE_PATH}/student`, studentRouter)
-
+app.use('/api/auth', oauthRouter)
 app.get('/', (req, res) => {
   res.send('Hello World!')
 })

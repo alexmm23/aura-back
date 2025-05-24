@@ -30,5 +30,8 @@ const env = {
   NODE_ENV: process.env.NODE_ENV || 'development',
   FRONTEND_URL: process.env.FRONTEND_URL || 'http://localhost:8081',
   SERVER_URL: process.env.SERVER_URL || `http://localhost:${process.env.PORT || 3000}`,
+  MS_CLIENT_ID: process.env.MS_CLIENT_ID || '',
+  MS_TENANT_ID: process.env.MS_TENANT_ID || '',
+  MS_CLIENT_SECRET: process.env.MS_CLIENT_SECRET || '',
 }
 export default env
