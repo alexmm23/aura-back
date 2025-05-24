@@ -1,20 +1,17 @@
 import { Router } from 'express'
 import axios from 'axios'
 import querystring from 'querystring'
-
+import env from '@/config/enviroment'
 const router = Router()
+const {
+  MS_CLIENT_ID: clientId,
+  MS_CLIENT_SECRET: clientSecret,
+  MS_TENANT_ID: tenantId,
+  SERVER_URL,
+} = env
 
-const clientId = process.env.MS_CLIENT_ID
-const clientSecret = process.env.MS_CLIENT_SECRET
-const tenantId = process.env.MS_TENANT_ID
-const redirectUri = 'http://localhost:3000/api/auth/microsoft/callback'
-const scopes = [
-  'openid',
-  'profile',
-  'offline_access',
-  'User.Read',
-  'Team.ReadBasic.All'
-].join(' ')
+const redirectUri = `${SERVER_URL}/api/auth/microsoft/callback`
+const scopes = ['openid', 'profile', 'offline_access', 'User.Read', 'Team.ReadBasic.All'].join(' ')
 
 // Step 1: Redirect user to Microsoft login
 router.get('/microsoft', (req, res) => {
@@ -24,7 +21,7 @@ router.get('/microsoft', (req, res) => {
     redirect_uri: redirectUri,
     response_mode: 'query',
     scope: scopes,
-    state: '12345'
+    state: '12345',
   })
   res.redirect(`https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/authorize?${params}`)
 })
@@ -41,9 +38,9 @@ router.get('/microsoft/callback', async (req, res) => {
         code,
         redirect_uri: redirectUri,
         grant_type: 'authorization_code',
-        client_secret: clientSecret
+        client_secret: clientSecret,
       }),
-      { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
+      { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } },
     )
     // You get access_token and refresh_token here
     res.json(tokenResponse.data)
@@ -53,3 +50,4 @@ router.get('/microsoft/callback', async (req, res) => {
 })
 
 export default router
+// This router handles Microsoft OAuth2 authentication
