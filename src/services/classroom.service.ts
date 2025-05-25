@@ -43,6 +43,7 @@ export const getClassroomAssignments = async (accessToken: string) => {
               courseId,
               courseName: name,
               dueDate: work.dueDate,
+              platform: 'classroom',
             }
           }
           return null
