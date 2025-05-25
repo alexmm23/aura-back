@@ -1,13 +1,13 @@
 import { Router } from 'express'
 import { getUserTeams } from '../services/teams.service'
 
-
 const router = Router()
 
 router.get('/teams', async (req, res) => {
   const authHeader = req.headers.authorization
   if (!authHeader) {
-    return res.status(401).json({ error: 'Missing Authorization header' })
+    res.status(401).json({ error: 'Missing Authorization header' })
+    return
   }
   const accessToken = authHeader.replace('Bearer ', '').trim()
   try {
