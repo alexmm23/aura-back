@@ -6,6 +6,7 @@ import { UserLoginAttributes, UserAttributes } from '@/types/user.types'
 import { User } from '@/models/user.model'
 import env from '@/config/enviroment'
 import { generateRefreshToken, generateToken } from '@/utils/jwt'
+import { authenticateToken } from '@/middlewares/auth.middleware'
 
 const authRouter = Router()
 
@@ -93,6 +94,36 @@ authRouter.post('/reset-password', async (req: Request, res: Response) => {
     res.status(200).json({ message: 'Password reset email sent', user })
   } catch (error: any) {
     res.status(500).json({ error: error.message })
+  }
+})
+
+authRouter.post('/logout', authenticateToken, async (req: Request, res: Response) => {
+  try {
+    const user = (req as any).user
+
+    if (!user) {
+      res.status(401).json({ error: 'Unauthorized' })
+      return
+    }
+
+    // Invalida el refresh token en la base de datos
+    await User.update(
+      { refresh_token: null },
+      {
+        where: {
+          id: user.id,
+        },
+      },
+    )
+
+    // Responde con éxito
+    res.status(200).json({
+      success: true,
+      message: 'Logged out successfully',
+    })
+  } catch (error: any) {
+    console.error('Error during logout:', error)
+    res.status(500).json({ error: 'An error occurred during logout' })
   }
 })
 
