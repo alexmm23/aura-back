@@ -71,7 +71,7 @@ router.get('/microsoft/callback', googleAuthMiddleware, authenticateToken, async
   const existingAccount = await UserAccount.findOne({
     where: {
       user_id: userId,
-      platform: 'google',
+      platform: 'microsoft',
     },
   })
   const { email, password } = await User.findOne({
@@ -101,14 +101,14 @@ router.get('/microsoft/callback', googleAuthMiddleware, authenticateToken, async
           // refresh_token is not available from Microsoft response
           expiry_date: expiryDate,
         },
-        { where: { user_id: userId, platform: 'google' } },
+        { where: { user_id: userId, platform: 'microsoft' } },
       )
     } else {
       await UserAccount.create({
         user_id: userId,
-        platform: 'google',
+        platform: 'microsoft',
         access_token: tokens.access_token,
-        // refresh_token is not available from Microsoft response
+        refresh_token: 'Not available', // Microsoft does not provide a refresh token
         username: email,
         password: password,
         expiry_date: new Date(tokens.expiry_date ? tokens.expiry_date : Date.now() + 3600 * 1000),
