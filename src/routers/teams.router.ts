@@ -1,7 +1,9 @@
 import { Router } from 'express'
 import { getUserTeams } from '../services/teams.service'
+import { authenticateToken } from '@/middlewares/auth.middleware'
 
 const router = Router()
+router.use(authenticateToken)
 
 router.get('/teams', async (req, res) => {
   const authHeader = req.headers.authorization

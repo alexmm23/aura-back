@@ -13,6 +13,7 @@ import jwt from 'jsonwebtoken'
 import { User } from '@/models/user.model'
 import env from '@/config/enviroment'
 import { generateRefreshToken, generateToken } from '@/utils/jwt'
+import { UserAccount } from '@/models/userAccount.model'
 
 const userRouter = Router()
 
@@ -43,11 +44,32 @@ userRouter.get(
 
       if (!user) {
         res.status(401).json({ error: 'Unauthorized' })
+        return
       }
+      const userProfile = await User.findOne({
+        where: {
+          id: user.id,
+        },
+        attributes: { exclude: ['password', 'refresh_token', 'id', 'role_id'] },
+      })
+
+      if (!userProfile) {
+        res.status(404).json({ error: 'User not found' })
+        return
+      }
+
+      const userAccounts = await UserAccount.findAll({
+        where: {
+          user_id: user.id,
+        },
+        attributes: ['platform'],
+      })
+
+      const activePlatforms = userAccounts.map((account: any) => account.platform)
 
       res.status(200).json({
         message: 'User profile',
-        user,
+        user: { ...userProfile?.toJSON?.(), activePlatforms },
       })
     } catch (error: any) {
       res.status(500).json({ error: error.message })
