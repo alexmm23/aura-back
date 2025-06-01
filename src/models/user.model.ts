@@ -1,4 +1,6 @@
-import { DataTypes } from 'sequelize'
+import { createRequire } from 'module'
+const require = createRequire(import.meta.url)
+const { DataTypes } = require('sequelize')
 import { sequelize } from '../config/database.js'
 
 export const User = sequelize.define(

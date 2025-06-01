@@ -1,5 +1,7 @@
 // Config here
-import { Sequelize } from 'sequelize'
+import { createRequire } from 'module'
+const require = createRequire(import.meta.url)
+const { Sequelize } = require('sequelize')
 import dotenv from 'dotenv'
 
 dotenv.config()
