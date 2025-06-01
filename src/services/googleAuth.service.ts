@@ -19,7 +19,8 @@ export const createOAuth2Client = (accessToken: string) => {
 export const getGoogleAuthUrl = ({ state }: { state: string }) => {
   const scopes = [
     'https://www.googleapis.com/auth/classroom.courses.readonly',
-    'https://www.googleapis.com/auth/classroom.coursework.me.readonly',
+    'https://www.googleapis.com/auth/drive.file', // ← Agrega este para subir archivos
+    'https://www.googleapis.com/auth/classroom.coursework.me', // Para entregar tareas
     'https://www.googleapis.com/auth/classroom.student-submissions.me.readonly',
   ]
   const url = oauth2Client.generateAuthUrl({
@@ -45,29 +46,40 @@ export const setCredentials = (tokens: any) => {
 }
 
 export const getNewAccessToken = async (userId: number | undefined) => {
-  const userAccount = await UserAccount.findOne({
-    where: {
-      user_id: userId,
-      platform: 'google',
-    },
-  })
-  if (!userAccount) {
-    throw new Error('User account not found')
-  }
-  const { refresh_token } = userAccount
-  oauth2Client.setCredentials({ refresh_token })
-  const { credentials } = await oauth2Client.refreshAccessToken()
-  await UserAccount.update(
-    {
-      access_token: credentials.access_token,
-      expiry_date: credentials.expiry_date,
-    },
-    {
+  try {
+    const userAccount = await UserAccount.findOne({
       where: {
         user_id: userId,
         platform: 'google',
       },
-    },
-  )
-  return credentials
+    })
+
+    if (!userAccount || !userAccount.refresh_token) {
+      throw new Error('User account or refresh token not found')
+    }
+
+    const { refresh_token } = userAccount
+    oauth2Client.setCredentials({ refresh_token })
+    const { credentials } = await oauth2Client.refreshAccessToken()
+
+    // Actualiza el nuevo access token en la base de datos
+    await UserAccount.update(
+      {
+        access_token: credentials.access_token,
+        expiry_date: new Date(credentials.expiry_date || Date.now() + 3600 * 1000),
+      },
+      { where: { user_id: userId, platform: 'google' } },
+    )
+
+    return credentials.access_token
+  } catch (error: any) {
+    if (error.message.includes('invalid_grant')) {
+      // El refresh token no es válido, elimina la cuenta y solicita nueva autorización
+      await UserAccount.destroy({
+        where: { user_id: userId, platform: 'google' },
+      })
+      throw new Error('Refresh token expired. User needs to re-authorize.')
+    }
+    throw error
+  }
 }

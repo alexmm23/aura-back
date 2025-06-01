@@ -16,13 +16,20 @@ const {
 } = env
 
 const redirectUri = `${SERVER_URL}/api/auth/microsoft/callback`
-const scopes = ['openid', 'profile', 'offline_access', 'User.Read', 'Team.ReadBasic.All']
-
+const scopes = [
+  'openid',
+  'profile',
+  'offline_access',
+  'User.Read',
+  'Tasks.Read',
+  'Tasks.ReadWrite', // Para To Do
+  // 'Group.Read.All',
+]
 // Configura MSAL
 const msalConfig = {
   auth: {
     clientId,
-    authority: `https://login.microsoftonline.com/${tenantId}`,
+    authority: `https://login.microsoftonline.com/common/oauth2/v2.0/authorize`, // Cambiado a 'common' para multitenant
     clientSecret,
   },
 }
@@ -54,6 +61,7 @@ router.get('/microsoft', authenticateToken, (req, res) => {
 router.get('/microsoft/callback', googleAuthMiddleware, authenticateToken, async (req, res) => {
   const code = req.query.code as string
   // const state = req.query.state as string
+
   if (!code) {
     res.status(400).json({ error: 'No code provided' })
     return
