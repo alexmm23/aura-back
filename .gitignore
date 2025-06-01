@@ -1,3 +1,4 @@
 /node_modules
 .env
 /classroom_web_credentials.json
+/dist
