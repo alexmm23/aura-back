@@ -17,8 +17,9 @@ export const generateToken = (user: UserAttributes): string => {
     email,
     role_id,
   }
+
   // Firmamos el token con una clave secreta y lo devolvemos
-  return jwt.sign(payload as any, secret, { expiresIn })
+  return jwt.sign(payload, secret, { expiresIn } as any)
 }
 export const generateRefreshToken = (user: any) => {
   const { JWT_REFRESH_SECRET, RT_EXPIRATION } = env // Obtener la clave secreta del entorno
@@ -33,5 +34,5 @@ export const generateRefreshToken = (user: any) => {
     role_id: user.role_id,
   }
 
-  return jwt.sign(payload, JWT_REFRESH_SECRET, { expiresIn: RT_EXPIRATION }) // Firmamos el token con una clave secreta y lo devolvemos
+  return jwt.sign(payload, JWT_REFRESH_SECRET, { expiresIn: RT_EXPIRATION } as any) // Firmamos el token con una clave secreta y lo devolvemos
 }
