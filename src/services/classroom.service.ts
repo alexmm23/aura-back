@@ -1,5 +1,6 @@
 import { google } from 'googleapis'
 import { createOAuth2Client } from './googleAuth.service'
+import { Readable } from 'stream'
 
 export const getClassroomAssignments = async (accessToken: string) => {
   const oauth2Client = createOAuth2Client(accessToken)
@@ -92,12 +93,11 @@ export const uploadFileToDrive = async (
 
   const fileMetadata = {
     name: fileName,
-    parents: [], // Remove the specific folder requirement for now
   }
 
   const media = {
     mimeType: 'application/octet-stream',
-    body: fileBuffer,
+    body: Readable.from(fileBuffer), // Convierte Buffer a stream directamente
   }
 
   try {
@@ -106,13 +106,12 @@ export const uploadFileToDrive = async (
       media: media,
     })
 
-    return file.data.id // ID del archivo en Drive
+    return file.data.id
   } catch (error) {
     console.error('Error uploading file to Drive:', error)
     throw new Error('Failed to upload file to Google Drive')
   }
 }
-
 export const turnInAssignmentWithFile = async (
   accessToken: string,
   courseId: string,
@@ -123,32 +122,29 @@ export const turnInAssignmentWithFile = async (
   const oauth2Client = createOAuth2Client(accessToken)
   const classroom = google.classroom({ version: 'v1', auth: oauth2Client })
 
-  const submission = {
-    assignmentSubmission: {
-      attachments: [
-        {
-          driveFile: {
-            id: driveFileId,
-            title: 'Assignment submission file',
-          },
-        },
-      ],
-    },
-    state: 'TURNED_IN',
-  }
-
   try {
-    await classroom.courses.courseWork.studentSubmissions.patch({
+    // Solo adjuntamos el archivo sin marcar como entregado
+    const response = await classroom.courses.courseWork.studentSubmissions.modifyAttachments({
       courseId,
       courseWorkId,
       id: submissionId,
-      updateMask: 'assignmentSubmission,state',
-      requestBody: submission,
+      requestBody: {
+        addAttachments: [
+          {
+            driveFile: {
+              id: driveFileId,
+            },
+          },
+        ],
+      },
     })
 
-    return { success: true }
+    return {
+      success: true,
+      submission: response.data,
+    }
   } catch (error) {
-    console.error('Error turning in assignment with file:', error)
-    throw new Error('Failed to turn in assignment with file')
+    console.error('Error adding file to assignment:', error)
+    throw new Error('Failed to add file to assignment')
   }
 }
