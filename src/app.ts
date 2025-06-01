@@ -5,8 +5,8 @@ import { googleAuthRouter } from './routers/googleAuth.router.js'
 import cors from 'cors'
 import { studentRouter } from './routers/student.router.js'
 import env from './config/enviroment.js'
-import  oauthRouter  from './routers/oauth.router'
-import teamsRouter from './routers/teams.router'
+import oauthRouter from './routers/oauth.router.js'
+import teamsRouter from './routers/teams.router.js'
 const app = express()
 const { API_BASE_PATH, CORS_ORIGIN, PORT } = env
 
