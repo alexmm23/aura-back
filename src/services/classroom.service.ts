@@ -1,12 +1,8 @@
 import { google } from 'googleapis'
+import { createOAuth2Client } from './googleAuth.service'
 
 export const getClassroomAssignments = async (accessToken: string) => {
-  const oauth2Client = new google.auth.OAuth2(
-    process.env.GOOGLE_CLIENT_ID,
-    process.env.GOOGLE_CLIENT_SECRET,
-    process.env.GOOGLE_REDIRECT_URI,
-  )
-  oauth2Client.setCredentials({ access_token: accessToken })
+  const oauth2Client = createOAuth2Client(accessToken)
   const classroom = google.classroom({ version: 'v1', auth: oauth2Client })
   try {
     const response = await classroom.courses.list({
@@ -58,5 +54,28 @@ export const getClassroomAssignments = async (accessToken: string) => {
   } catch (error) {
     console.error('Error fetching assignments:', error)
     throw new Error('Failed to fetch assignments')
+  }
+}
+
+export async function turnInAssignment(
+  courseId: string,
+  courseWorkId: string,
+  submissionId: string,
+  accessToken: string,
+) {
+  const oauth2Client = createOAuth2Client(accessToken)
+  const classroom = google.classroom({ version: 'v1', auth: oauth2Client })
+  try {
+    await classroom.courses.courseWork.studentSubmissions.turnIn({
+      courseId,
+      courseWorkId,
+      id: submissionId,
+    })
+    return {
+      success: true,
+    }
+  } catch (error) {
+    console.error('Error turning in assignment:', error)
+    throw new Error('Failed to turn in assignment')
   }
 }

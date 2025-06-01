@@ -33,7 +33,6 @@ export async function sendTeamsMessage(teamId: string, channelId: string, messag
   })
 }
 
-
 export async function getUserTeams(accessToken: string) {
   const client = Client.init({
     authProvider: (done) => {
@@ -42,4 +41,16 @@ export async function getUserTeams(accessToken: string) {
   })
   const teams = await client.api('/me/joinedTeams').get()
   return teams.value
+}
+
+//Obtener tareas pendientes de teams
+export async function getTeamsTasks(accessToken: string) {
+  const client = Client.init({
+    authProvider: (done) => {
+      done(null, accessToken)
+    },
+  })
+  // Tareas asignadas al usuario en Planner (Teams)
+  const tasks = await client.api('/me/planner/tasks').get()
+  return tasks.value
 }
