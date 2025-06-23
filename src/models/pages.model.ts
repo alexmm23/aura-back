@@ -4,7 +4,7 @@ const { DataTypes } = require('sequelize')
 import { sequelize } from '../config/database.js'
 import { title } from 'process'
 
-sequelize.define('Page', {
+const Page = sequelize.define('Page', {
   id: {
     type: DataTypes.INTEGER,
     primaryKey: true,
@@ -39,3 +39,5 @@ sequelize.define('Page', {
     defaultValue: false,
   },
 })
+
+export default Page

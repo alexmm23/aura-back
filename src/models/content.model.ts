@@ -3,7 +3,7 @@ const require = createRequire(import.meta.url)
 const { DataTypes } = require('sequelize')
 import { sequelize } from '../config/database.js'
 
-sequelize.define('Content', {
+const Content = sequelize.define('Content', {
   id: {
     type: DataTypes.INTEGER,
     primaryKey: true,
@@ -69,3 +69,5 @@ sequelize.define('Content', {
     defaultValue: false,
   },
 })
+
+export default Content
