@@ -9,9 +9,10 @@ import { User } from '@/models/user.model'
 import env from '@/config/enviroment'
 
 const router = Router()
+const baseUrl = '/auth/google'
 
 // Redireccionar a Google
-router.get('/auth/google', authenticateToken, (req: Request & { user?: UserAttributes }, res) => {
+router.get(`${baseUrl}`, authenticateToken, (req: Request & { user?: UserAttributes }, res) => {
   const userId = req.user?.id
   if (!userId) {
     res.status(400).send('No se pudo obtener el ID de usuario.')
@@ -28,7 +29,7 @@ router.get('/auth/google', authenticateToken, (req: Request & { user?: UserAttri
 
 // Callback de Google
 router.get(
-  '/auth/google/callback',
+  `${baseUrl}/callback`,
   googleAuthMiddleware,
   authenticateToken,
   async (req: Request & { user?: UserAttributes }, res: Response) => {

@@ -7,6 +7,7 @@ import { studentRouter } from './routers/student.router.js'
 import env from './config/enviroment.js'
 import oauthRouter from './routers/oauth.router.js'
 import teamsRouter from './routers/teams.router.js'
+import notebookRouter from './routers/notebook.router.js'
 const app = express()
 const { API_BASE_PATH, CORS_ORIGIN, PORT } = env
 
@@ -22,12 +23,17 @@ app.use(
 )
 // app.use(checkRole)
 // app.use(errorHandler)
-app.use(`${API_BASE_PATH}/users`, userRouter)
-app.use(`${API_BASE_PATH}/auth`, authRouter)
-app.use(API_BASE_PATH, googleAuthRouter)
-app.use(`${API_BASE_PATH}/student`, studentRouter)
-app.use('/api/auth', oauthRouter)
-app.use('/api', teamsRouter)
+const routes = [
+  { path: `${API_BASE_PATH}/users`, router: userRouter },
+  { path: `${API_BASE_PATH}/auth`, router: authRouter },
+  { path: `${API_BASE_PATH}`, router: googleAuthRouter },
+  { path: `${API_BASE_PATH}/students`, router: studentRouter },
+  { path: `${API_BASE_PATH}/oauth`, router: oauthRouter },
+  { path: `${API_BASE_PATH}/teams`, router: teamsRouter },
+  { path: `${API_BASE_PATH}/notebook`, router: notebookRouter },
+]
+
+routes.forEach(({ path, router }) => app.use(path, router))
 app.get('/', (req, res) => {
   res.send('Hello World!')
 })
