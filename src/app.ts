@@ -7,7 +7,7 @@ import { studentRouter } from './routers/student.router.js'
 import env from './config/enviroment.js'
 import oauthRouter from './routers/oauth.router.js'
 import teamsRouter from './routers/teams.router.js'
-import notebookRouter from './routers/notebook.router.js'
+import { notebookRouter } from './routers/notebook.router.js'
 const app = express()
 const { API_BASE_PATH, CORS_ORIGIN, PORT } = env
 
@@ -33,7 +33,13 @@ const routes = [
   { path: `${API_BASE_PATH}/notebook`, router: notebookRouter },
 ]
 
-routes.forEach(({ path, router }) => app.use(path, router))
+routes.forEach(({ path, router }) => {
+  console.log(`📍 Registering route: ${path}`)
+  app.use(path, router)
+})
+
+console.log('🚀 All routes registered successfully')
+
 app.get('/', (req, res) => {
   res.send('Hello World!')
 })

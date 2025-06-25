@@ -32,6 +32,9 @@ const Notebook = sequelize.define('Notebook', {
     allowNull: false,
     defaultValue: false,
   },
+},{
+  tableName: 'notebooks',
+  timestamps: false,
 })
 
 export default Notebook

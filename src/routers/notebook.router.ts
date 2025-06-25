@@ -13,11 +13,16 @@ declare module 'express-serve-static-core' {
 const notebookRouter = Router()
 const notebookService = new NotebookService()
 
+console.log('📚 Notebook router loaded')
+
 notebookRouter.get('/health', (req: Request, res: Response) => {
   res.status(200).json({ status: 'Notebook service is healthy' })
 })
 
-notebookRouter.post('/create', authenticateToken, async (req: Request, res: Response) => {
+notebookRouter.post('/add', authenticateToken, async (req: Request, res: Response) => {
+  // console.log('Creating notebook with request body:', req.body)
+  // res.json({ message: 'Creating notebook' })
+  // return;
   try {
     const { title } = req.body
     const userId = req.user?.id // Obtener userId del token
@@ -35,33 +40,33 @@ notebookRouter.post('/create', authenticateToken, async (req: Request, res: Resp
     res.status(500).json({ error: `Internal Server Error: ${error}` })
   }
 })
-notebookRouter.get('/list', authenticateToken, async (req: Request, res: Response) => {
-  try {
-    const userId = req.user?.id // Obtener userId del token
+// notebookRouter.get('/list', authenticateToken, async (req: Request, res: Response) => {
+//   try {
+//     const userId = req.user?.id // Obtener userId del token
     
-    if (!userId) {
-      res.status(400).json({ error: 'User ID not found in token' })
-      return
-    }
+//     if (!userId) {
+//       res.status(400).json({ error: 'User ID not found in token' })
+//       return
+//     }
     
-    const notebooks = await notebookService.getNotebooks(Number(userId))
-    res.status(200).json(notebooks)
-  } catch (error) {
-    res.status(500).json({ error: `Internal Server Error: ${error}` })
-  }
-})
-notebookRouter.delete('/delete/:id', authenticateToken, async (req: Request, res: Response) => {
-  try {
-    const notebookId = Number(req.params.id)
-    if (!notebookId) {
-      res.status(400).json({ error: 'Notebook ID is required' })
-      return
-    }
-    await notebookService.deleteNotebook(notebookId)
-    res.status(204).send()
-  } catch (error) {
-    res.status(500).json({ error: `Internal Server Error: ${error}` })
-  }
-})
+//     const notebooks = await notebookService.getNotebooks(Number(userId))
+//     res.status(200).json(notebooks)
+//   } catch (error) {
+//     res.status(500).json({ error: `Internal Server Error: ${error}` })
+//   }
+// })
+// notebookRouter.delete('/delete/:id', authenticateToken, async (req: Request, res: Response) => {
+//   try {
+//     const notebookId = Number(req.params.id)
+//     if (!notebookId) {
+//       res.status(400).json({ error: 'Notebook ID is required' })
+//       return
+//     }
+//     await notebookService.deleteNotebook(notebookId)
+//     res.status(204).send()
+//   } catch (error) {
+//     res.status(500).json({ error: `Internal Server Error: ${error}` })
+//   }
+// })
 
-export default notebookRouter
+export { notebookRouter }
