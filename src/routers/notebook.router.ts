@@ -68,5 +68,21 @@ notebookRouter.delete('/delete/:id', authenticateToken, async (req: Request, res
     res.status(500).json({ error: `Internal Server Error: ${error}` })
   }
 })
+//Editar titulo de un notebook
+notebookRouter.put('/edit/:id', authenticateToken, async (req: Request, res: Response) => {
+  try {
+    const notebookId = Number(req.params.id)
+    const { title } = req.body
+    if (!notebookId || !title) {
+      res.status(400).json({ error: 'Notebook ID and title are required' })
+      return
+    }
+    const updatedNotebook = await notebookService.updateNotebook(notebookId, title)
+    res.status(200).json({message: 'Notebook updated successfully' })
+  } catch (error) {
+    res.status(500).json({ error: `Internal Server Error: ${error}` })
+  }
+})
+
 
 export { notebookRouter }
