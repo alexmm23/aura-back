@@ -16,7 +16,8 @@ router.post(
       const file = req.file
 
       if (!file) {
-        return res.status(400).json({ error: 'Missing image file' })
+        res.status(400).json({ error: 'Missing image file' })
+        return 
       }
 
       // Compress PNG using sharp
