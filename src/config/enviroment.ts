@@ -34,4 +34,14 @@ const env = {
   MS_TENANT_ID: process.env.MS_TENANT_ID || '',
   MS_CLIENT_SECRET: process.env.MS_CLIENT_SECRET || '',
 }
+
+export const CORS_ORIGIN = process.env.CORS_ORIGIN || 'http://localhost:3000'
+export const PORT = process.env.PORT || 3000
+export const API_BASE_PATH = process.env.API_BASE_PATH || '/api'
+export const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || ''
+export const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || ''
+export const GOOGLE_REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI || ''
+export const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY || ''
+export const GOOGLE_DRIVE_CREDENTIALS = process.env.GOOGLE_DRIVE_CREDENTIALS || ''
+
 export default env

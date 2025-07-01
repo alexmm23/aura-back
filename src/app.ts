@@ -29,7 +29,7 @@ const routes = [
   { path: `${API_BASE_PATH}/users`, router: userRouter },
   { path: `${API_BASE_PATH}/auth`, router: authRouter },
   { path: `${API_BASE_PATH}`, router: googleAuthRouter },
-  { path: `${API_BASE_PATH}/students`, router: studentRouter },
+  { path: `${API_BASE_PATH}/student`, router: studentRouter },
   { path: `${API_BASE_PATH}/oauth`, router: oauthRouter },
   { path: `${API_BASE_PATH}/teams`, router: teamsRouter },
   { path: `${API_BASE_PATH}/notebook`, router: notebookRouter },
