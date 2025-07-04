@@ -1,4 +1,7 @@
 {
   "resolveFullPaths": true,
-  "resolveFullExtension": ".js"
+  "verbose": false,
+  "replacers": {
+    "@/*": "./dist/*"
+  }
 }
