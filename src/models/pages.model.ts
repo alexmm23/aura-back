@@ -1,8 +1,9 @@
 import { createRequire } from 'module'
-const require = createRequire(import.meta.url)
-const { DataTypes } = require('sequelize')
 import { sequelize } from '../config/database.js'
 import { title } from 'process'
+
+const require = createRequire(import.meta.url)
+const { DataTypes } = require('sequelize')
 
 const Page = sequelize.define('Page', {
   id: {

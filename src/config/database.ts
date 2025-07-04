@@ -1,8 +1,10 @@
 // Config here
 import { createRequire } from 'module'
+import dotenv from 'dotenv'
+
+// Workaround for ES modules with CommonJS packages
 const require = createRequire(import.meta.url)
 const { Sequelize } = require('sequelize')
-import dotenv from 'dotenv'
 
 dotenv.config()
 
