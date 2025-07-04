@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { getUserTeams } from '../services/teams.service'
+import { getUserTeams } from '../services/teams.service.js'
 import { authenticateToken } from '@/middlewares/auth.middleware'
 import { UserAccount } from '@/models/userAccount.model'
 
