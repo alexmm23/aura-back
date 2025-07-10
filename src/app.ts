@@ -18,7 +18,7 @@ app.use('/api/note', noteRouter)
 app.use(
   cors({
     origin: CORS_ORIGIN,
-    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,
   }),
