@@ -33,6 +33,7 @@ const routes = [
   { path: `${API_BASE_PATH}/oauth`, router: oauthRouter },
   { path: `${API_BASE_PATH}/teams`, router: teamsRouter },
   { path: `${API_BASE_PATH}/notebook`, router: notebookRouter },
+  { path: `${API_BASE_PATH}/note`, router: noteRouter },
 ]
 
 routes.forEach(({ path, router }) => {

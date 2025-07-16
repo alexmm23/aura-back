@@ -64,11 +64,12 @@ const Content = sequelize.define('Content', {
     allowNull: true,
     defaultValue: DataTypes.NOW,
   },
-  deleted: {
-    type: DataTypes.BOOLEAN,
-    allowNull: false,
-    defaultValue: false,
-  },
+}, {
+  tableName: 'Contents',
+  timestamps: true,
+  createdAt: 'created_at',
+  updatedAt: 'updated_at',
+  underscored: false
 })
 
 export default Content
