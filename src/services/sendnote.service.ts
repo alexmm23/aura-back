@@ -1,6 +1,12 @@
 import sharp from 'sharp'
+import fs from 'fs/promises'
+import path from 'path'
+import { fileURLToPath } from 'url'
 import Content from '@/models/content.model'
-import Page from '@/models/pages.model' // Asegúrate de importar el modelo Page
+import Page from '@/models/pages.model'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 
 interface SaveImageParams {
   userId: number
@@ -18,6 +24,7 @@ interface SaveImageResult {
   y: number
   width: number
   height: number
+  image_path: string
   created_at: Date
   updated_at: Date
   stats: {
@@ -28,8 +35,24 @@ interface SaveImageResult {
   }
 }
 
+// Función para asegurar que el directorio existe
+async function ensureDirectoryExists(dirPath: string): Promise<void> {
+  try {
+    await fs.access(dirPath)
+  } catch {
+    await fs.mkdir(dirPath, { recursive: true })
+  }
+}
+
+// Función para generar nombre único de archivo
+function generateFileName(userId: number, pageId: number): string {
+  const timestamp = Date.now()
+  const random = Math.random().toString(36).substring(2, 15)
+  return `img_${userId}_${pageId}_${timestamp}_${random}.png`
+}
+
 export async function saveCompressedPngImage({
-  userId, // Corregido: era userId:number
+  userId,
   pageId,
   imageBuffer,
   x = 0,
@@ -47,14 +70,25 @@ export async function saveCompressedPngImage({
     // Obtener metadatos finales
     const finalMetadata = await sharp(compressedBuffer).metadata()
 
-    // Convertir a base64 para almacenar en BD
-    const base64Data = compressedBuffer.toString('base64')
+    // Definir rutas
+    const storageDir = path.join(__dirname, '../../storage/images')
+    const fileName = generateFileName(userId, pageId)
+    const filePath = path.join(storageDir, fileName)
+    
+    // Crear directorio si no existe
+    await ensureDirectoryExists(storageDir)
+    
+    // Guardar imagen en el sistema de archivos
+    await fs.writeFile(filePath, compressedBuffer)
+    
+    // Ruta relativa para guardar en BD (desde src/)
+    const relativePath = `storage/images/${fileName}`
 
-    // Save image in database
+    // Save image metadata in database
     const savedImage = await Content.create({
       page_id: pageId,
       type: 'image',
-      data: base64Data,
+      data: relativePath, // Guardamos la ruta en lugar del base64
       x: x,
       y: y,
       width: finalMetadata.width || 0,
@@ -74,6 +108,7 @@ export async function saveCompressedPngImage({
       y: savedImage.y,
       width: savedImage.width,
       height: savedImage.height,
+      image_path: relativePath,
       created_at: savedImage.created_at,
       updated_at: savedImage.updated_at,
       stats: {
@@ -86,5 +121,16 @@ export async function saveCompressedPngImage({
   }
   catch (error) {
     throw new Error(`Error saving compressed image: ${(error as Error).message}`)
+  }
+}
+
+// Función auxiliar para eliminar imagen del sistema de archivos
+export async function deleteImageFile(imagePath: string): Promise<void> {
+  try {
+    const fullPath = path.join(__dirname, '../../', imagePath)
+    await fs.unlink(fullPath)
+  } catch (error) {
+    console.error('Error deleting image file:', error)
+    // No lanzamos error para que no falle la operación principal
   }
 }

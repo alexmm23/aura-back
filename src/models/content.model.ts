@@ -15,7 +15,7 @@ const Content = sequelize.define('Content', {
     type: DataTypes.INTEGER,
     allowNull: false,
     references: {
-      model: 'Page', // Assuming you have a Page model defined
+      model: 'Page',
       key: 'id',
     },
   },
@@ -33,14 +33,15 @@ const Content = sequelize.define('Content', {
   data: {
     type: DataTypes.TEXT,
     allowNull: false,
+    comment: 'For images: file path, for text: content, for video/audio: file path'
   },
   x: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.FLOAT, // Cambiado a FLOAT para mayor precisión
     allowNull: false,
     defaultValue: 0,
   },
   y: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.FLOAT, // Cambiado a FLOAT para mayor precisión
     allowNull: false,
     defaultValue: 0,
   },
@@ -69,7 +70,19 @@ const Content = sequelize.define('Content', {
   timestamps: true,
   createdAt: 'created_at',
   updatedAt: 'updated_at',
-  underscored: false
+  underscored: false,
+  
+  // Hooks para limpiar archivos cuando se elimina un registro
+  hooks: {
+    beforeDestroy: async (instance: { type: string; data: string }) => {
+
+      if (instance.type === 'image' && instance.data) {
+        // Importar dinámicamente la función de eliminación
+        const { deleteImageFile } = await import('../services/sendnote.service.js')
+        await deleteImageFile(instance.data)
+      }
+    }
+  }
 })
 
 export default Content
