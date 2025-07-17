@@ -2,6 +2,5 @@
 .env
 /classroom_web_credentials.json
 /google_credentials.json
-/distx
-
+/dist
 /storage/images/*
