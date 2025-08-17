@@ -30,13 +30,13 @@ export const registerUser = async (userData: UserCreationAttributes): Promise<Us
       },
     })
     if (existingUser) {
-      throw new Error('User already exists')
+      throw new Error('El correo electrónico que intenta usar ya fue registrado.')
     }
     // Create a new user
     // Hash the password before saving
     const hashedPassword = await hashPassword(userData.password)
     if (!hashedPassword) {
-      throw new Error('Error hashing password')
+      throw new Error('Error al hashear la contraseña')
     }
     const newUser = await User.create({
       name: userData.name,
