@@ -36,7 +36,7 @@ const env = {
   DOMAIN: process.env.DOMAIN || 'localhost',
 }
 
-export const CORS_ORIGIN = process.env.CORS_ORIGIN || 'http://localhost:3000'
+export const CORS_ORIGIN = process.env.CORS_ORIGIN || 'http://localhost:8081'
 export const PORT = process.env.PORT || 3000
 export const API_BASE_PATH = process.env.API_BASE_PATH || '/api'
 export const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || ''
