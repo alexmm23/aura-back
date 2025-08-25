@@ -15,6 +15,12 @@ export class NotebookService {
     })
   }
 
+  async searchByName(title: string) {
+    return await Notebook.findOne({
+      where: { title: title, deleted: false },
+    })
+  }
+
   async deleteNotebook(notebookId: number) {
     return await Notebook.update({ deleted: true }, { where: { id: notebookId } })
   }
