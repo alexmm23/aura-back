@@ -1,10 +1,10 @@
 import sharp from 'sharp'
-import Content from '@/models/content.model'
+import { Content, Notebook, Page, User } from '@/models/index'
 
 export async function saveCompressedPngImage(
   userId: number,
   notebookId: number,
-  imageBuffer: Buffer
+  imageBuffer: Buffer,
 ) {
   // Compress PNG using sharp
   const compressedBuffer = await sharp(imageBuffer)
@@ -23,4 +23,45 @@ export async function saveCompressedPngImage(
   })
 
   return image
+}
+
+export async function getNotesByUserId(userId: number) {
+  try {
+    const user = await User.findByPk(userId)
+
+    if (!user) {
+      throw new Error('User not found')
+    }
+    const notebooks = await Notebook.findAll({
+      where: {
+        user_id: userId,
+      },
+      include: [
+        {
+          model: Page,
+          as: 'pages', // Usar el alias definido en la asociación
+          include: [
+            {
+              model: Content,
+              as: 'contents', // Usar el alias definido en la asociación
+            },
+          ],
+        },
+      ],
+    })
+
+    if (!notebooks.length) {
+      throw new Error('No notebooks found')
+    }
+
+    // Extract all contents from all pages in all notebooks
+    const contents = notebooks.flatMap(
+      (notebook: any) => notebook.Pages?.flatMap((page: any) => page.Contents || []) || [],
+    )
+
+    return contents
+  } catch (error) {
+    console.error('Error fetching notes:', error)
+    throw error
+  }
 }
