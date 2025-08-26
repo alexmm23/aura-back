@@ -65,3 +65,33 @@ export async function getNotesByUserId(userId: number) {
     throw error
   }
 }
+export async function getNotesByNotebookId(notebookId: number) {
+  try {
+    const notebook = await Notebook.findByPk(notebookId, {
+      include: [
+        {
+          model: Page,
+          as: 'pages',
+          include: [
+            {
+              model: Content,
+              as: 'contents',
+            },
+          ],
+        },
+      ],
+    })
+
+    if (!notebook) {
+      throw new Error('Notebook not found')
+    }
+
+    // Extract all contents from all pages in the notebook
+    const contents = notebook.Pages?.flatMap((page: any) => page.Contents || []) || []
+
+    return contents
+  } catch (error) {
+    console.error('Error fetching notes:', error)
+    throw error
+  }
+}

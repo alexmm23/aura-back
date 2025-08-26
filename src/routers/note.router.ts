@@ -5,7 +5,7 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 import { authenticateToken } from '@/middlewares/auth.middleware'
 import { saveCompressedPngImage } from '@/services/sendnote.service'
-import { getNotesByUserId } from '@/services/note.service'
+import { getNotesByNotebookId, getNotesByUserId } from '@/services/note.service'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -75,6 +75,35 @@ router.get('/list', authenticateToken, async (req, res) => {
 
     // Lógica para obtener la lista de notas del usuario
     const notes = await getNotesByUserId(userId)
+
+    res.status(200).json({
+      success: true,
+      data: notes,
+    })
+  } catch (error: any) {
+    console.error('Error fetching notes:', error)
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    })
+  }
+})
+
+router.get('/list/:notebookId', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user?.id
+    const notebookId = Number(req.params.notebookId)
+
+    if (!userId) {
+      res.status(401).json({
+        success: false,
+        error: 'User not authenticated',
+      })
+      return
+    }
+
+    // Lógica para obtener la lista de notas del usuario en el cuaderno específico
+    const notes = await getNotesByNotebookId(notebookId)
 
     res.status(200).json({
       success: true,
