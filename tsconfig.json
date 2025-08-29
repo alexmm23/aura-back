@@ -16,6 +16,17 @@
     "skipLibCheck": true,
     "resolveJsonModule": true
   },
+  "include": ["src/**/*"],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "**/*.test.ts",
+    "**/*.spec.ts",
+    ".env*",
+    "*.md",
+    "*.json",
+    ".git*"
+  ],
   "ts-node": {
     "esm": true
   }
