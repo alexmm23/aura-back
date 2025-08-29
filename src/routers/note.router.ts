@@ -6,6 +6,9 @@ import { fileURLToPath } from 'url'
 import { authenticateToken } from '@/middlewares/auth.middleware'
 import { saveCompressedPngImage } from '@/services/sendnote.service'
 import { getNotesByNotebookId, getNotesByUserId } from '@/services/note.service'
+import Page from '@/models/pages.model'
+import Content from '@/models/content.model'
+import { Notebook } from '@/models'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -129,11 +132,11 @@ router.post('/images/upload', authenticateToken, upload.single('image'), async (
       })
       return
     }
-
+    
     // Obtener datos del body
-    const { page_id, x, y } = req.body
+    const { notebook_id, x, y } = req.body
     const userId = req.user?.id // Desde el middleware de autenticación
-
+    
     // Validar usuario autenticado
     if (!userId) {
       res.status(401).json({
@@ -142,15 +145,20 @@ router.post('/images/upload', authenticateToken, upload.single('image'), async (
       })
       return
     }
-
+    
     // Validar page_id
-    if (!page_id) {
+    if (!notebook_id) {
       res.status(400).json({
         success: false,
-        error: 'page_id is required',
+        error: 'notebook_id is required',
       })
       return
     }
+    const newPage = await Page.create({
+      notebook_id: notebook_id,
+      title: 'New Page',
+    })
+    const page_id = newPage.id
 
     // Usar el service para guardar la imagen
     const result = await saveCompressedPngImage({
@@ -161,13 +169,15 @@ router.post('/images/upload', authenticateToken, upload.single('image'), async (
       y: y ? parseFloat(y) : 0,
     })
 
+    const url = `/api/notes/images/${path.basename(result.image_path)}`
+
     res.status(201).json({
       success: true,
       message: 'Image compressed and saved successfully',
       data: {
         ...result,
         // Proporcionar URL completa para acceder a la imagen
-        image_url: `/api/notes/images/${path.basename(result.image_path)}`,
+        image_url: url,
       },
     })
   } catch (error: any) {

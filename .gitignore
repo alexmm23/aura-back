@@ -4,3 +4,10 @@
 /google_credentials.json
 /dist
 /storage/images/*
+
+# Netlify
+.netlify/
+
+# Logs
+*.log
+npm-debug.log*
