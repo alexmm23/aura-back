@@ -107,6 +107,7 @@ router.get('/list/:notebookId', authenticateToken, async (req, res) => {
 
     // Lógica para obtener la lista de notas del usuario en el cuaderno específico
     const notes = await getNotesByNotebookId(notebookId)
+    // console.log('Notas en el cuaderno:', notes)
 
     res.status(200).json({
       success: true,
@@ -132,11 +133,11 @@ router.post('/images/upload', authenticateToken, upload.single('image'), async (
       })
       return
     }
-    
+
     // Obtener datos del body
     const { notebook_id, x, y } = req.body
     const userId = req.user?.id // Desde el middleware de autenticación
-    
+
     // Validar usuario autenticado
     if (!userId) {
       res.status(401).json({
@@ -145,7 +146,7 @@ router.post('/images/upload', authenticateToken, upload.single('image'), async (
       })
       return
     }
-    
+
     // Validar page_id
     if (!notebook_id) {
       res.status(400).json({

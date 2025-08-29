@@ -1,4 +1,6 @@
 import sharp from 'sharp'
+import fs from 'fs'
+import path from 'path'
 import { Content, Notebook, Page, User } from '@/models/index'
 
 export async function saveCompressedPngImage(
@@ -87,9 +89,56 @@ export async function getNotesByNotebookId(notebookId: number) {
     }
 
     // Extract all contents from all pages in the notebook
-    const contents = notebook.Pages?.flatMap((page: any) => page.Contents || []) || []
+    const initialContents = notebook.pages?.flatMap((page: any) => page.contents || []) || []
 
-    return contents
+    // Convert image URLs to base64 for contents that have image data
+    const contentsWithBase64 = await Promise.all(
+      initialContents.map(async (content: any) => {
+        if (content.type === 'image' && content.data) {
+          try {
+            console.log('Converting image to base64:', content.data)
+            // If data is already base64, return as is
+            if (content.data.startsWith('data:image/')) {
+              return content
+            }
+            // If data is a URL/path, read file and convert to base64
+            const imagePath = path.join(
+              process.cwd(),
+              content.data.startsWith('/') ? content.data.slice(1) : content.data,
+            )
+
+            if (!fs.existsSync(imagePath)) {
+              console.error('Image file not found:', imagePath)
+              return content
+            }
+
+            const imageBuffer = fs.readFileSync(imagePath)
+            const base64 = imageBuffer.toString('base64')
+
+            // Determine the mime type based on file extension
+            const ext = path.extname(imagePath).toLowerCase()
+            const mimeType =
+              ext === '.png'
+                ? 'image/png'
+                : ext === '.jpg' || ext === '.jpeg'
+                  ? 'image/jpeg'
+                  : 'image/png'
+
+            return {
+              ...content.toJSON(),
+              data: `data:${mimeType};base64,${base64}`,
+            }
+          } catch (error) {
+            console.error('Error converting image to base64:', error)
+            return content
+          }
+        }
+        return content
+      }),
+    )
+    console.log('Converted contents with base64 images:', contentsWithBase64)
+
+    return contentsWithBase64
   } catch (error) {
     console.error('Error fetching notes:', error)
     throw error
