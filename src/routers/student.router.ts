@@ -3,6 +3,8 @@ import { authenticateToken } from '@/middlewares/auth.middleware'
 import upload from '@/middlewares/upload.middleware'
 import {
   getClassroomAssignments,
+  getAssignmentDetails,
+  getAssignmentRubric,
   turnInAssignment,
   turnInAssignmentWithFile,
   uploadFileToDrive,
@@ -105,9 +107,9 @@ studentRouter.get('/homework', async (req: Request & { user?: UserAttributes }, 
   }
 })
 
-// Turn in assignment without file
+// Hand in assignment without file
 studentRouter.post(
-  '/homework/classroom/turnin',
+  '/homework/classroom/handin',
   async (req: Request & { user?: UserAttributes }, res: Response) => {
     try {
       const { submissionId, courseId, courseWorkId } = req.body
@@ -252,6 +254,135 @@ studentRouter.post(
       })
     } catch (error) {
       console.error('Error turning in assignment with file:', error)
+      res.status(500).json({ error: 'Internal Server Error' })
+    }
+  },
+)
+
+// Get assignment details
+studentRouter.get(
+  '/homework/:courseId/:courseWorkId',
+  async (req: Request & { user?: UserAttributes }, res: Response) => {
+    try {
+      const { courseId, courseWorkId } = req.params
+      const { user } = req
+
+      if (!user) {
+        res.status(401).json({ error: 'Unauthorized' })
+        return
+      }
+
+      if (!courseId || !courseWorkId) {
+        res.status(400).json({ error: 'Course ID and CourseWork ID are required' })
+        return
+      }
+
+      // Get Google account
+      const googleAccount = await UserAccount.findOne({
+        where: {
+          user_id: user.id,
+          platform: 'google',
+        },
+      })
+
+      if (!googleAccount || !googleAccount.access_token) {
+        res.status(401).json({ error: 'No Google account linked' })
+        return
+      }
+
+      let accessToken = googleAccount.access_token
+
+      // Check if token is expired and refresh if needed
+      if (googleAccount.expiry_date && new Date(googleAccount.expiry_date) < new Date()) {
+        try {
+          accessToken = await getNewAccessToken(user.id)
+        } catch (error: any) {
+          console.error('Failed to refresh Google token:', error)
+          if (error.message.includes('re-authorize')) {
+            res.status(401).json({
+              error: 'Google authorization expired. Please re-authenticate.',
+              needsAuth: true,
+              authUrl: '/api/auth/google',
+            })
+            return
+          }
+          throw error
+        }
+      }
+
+      // Get assignment details
+      const assignmentDetails = await getAssignmentDetails(accessToken!, courseId, courseWorkId)
+
+      res.status(200).json(assignmentDetails)
+    } catch (error) {
+      console.error('Error fetching assignment details:', error)
+      res.status(500).json({ error: 'Internal Server Error' })
+    }
+  },
+)
+
+// Get assignment rubric
+studentRouter.get(
+  '/homework/:courseId/:courseWorkId/rubric',
+  async (req: Request & { user?: UserAttributes }, res: Response) => {
+    try {
+      const { courseId, courseWorkId } = req.params
+      const { user } = req
+
+      if (!user) {
+        res.status(401).json({ error: 'Unauthorized' })
+        return
+      }
+
+      if (!courseId || !courseWorkId) {
+        res.status(400).json({ error: 'Course ID and CourseWork ID are required' })
+        return
+      }
+
+      // Get Google account
+      const googleAccount = await UserAccount.findOne({
+        where: {
+          user_id: user.id,
+          platform: 'google',
+        },
+      })
+
+      if (!googleAccount || !googleAccount.access_token) {
+        res.status(401).json({ error: 'No Google account linked' })
+        return
+      }
+
+      let accessToken = googleAccount.access_token
+
+      // Check if token is expired and refresh if needed
+      if (googleAccount.expiry_date && new Date(googleAccount.expiry_date) < new Date()) {
+        try {
+          accessToken = await getNewAccessToken(user.id)
+        } catch (error: any) {
+          console.error('Failed to refresh Google token:', error)
+          if (error.message.includes('re-authorize')) {
+            res.status(401).json({
+              error: 'Google authorization expired. Please re-authenticate.',
+              needsAuth: true,
+              authUrl: '/api/auth/google',
+            })
+            return
+          }
+          throw error
+        }
+      }
+
+      // Get assignment rubric
+      const rubric = await getAssignmentRubric(accessToken!, courseId, courseWorkId)
+
+      if (!rubric) {
+        res.status(404).json({ error: 'No rubric found for this assignment' })
+        return
+      }
+
+      res.status(200).json(rubric)
+    } catch (error) {
+      console.error('Error fetching assignment rubric:', error)
       res.status(500).json({ error: 'Internal Server Error' })
     }
   },
