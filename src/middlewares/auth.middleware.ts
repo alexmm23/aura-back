@@ -1,7 +1,7 @@
 // src/middlewares/auth.middleware.js
 import jwt from 'jsonwebtoken'
 import { Request, Response, NextFunction } from 'express'
-import { UserAttributes } from '@/types/user.types.js'
+import { UserAttributes } from '@/types/user.types'
 import env from '@/config/enviroment'
 
 export const authenticateToken = async (

@@ -1,7 +1,7 @@
 import jwt from 'jsonwebtoken'
-import { UserAttributes } from '@/types/user.types.js'
-import env from '@/config/enviroment.js'
-import { User } from '@/models/user.model.js'
+import { UserAttributes } from '@/types/user.types'
+import env from '@/config/enviroment'
+import { User } from '@/models/user.model'
 
 // Generar un token JWT para el usuario (Access Token)
 export const generateToken = (user: UserAttributes): string => {

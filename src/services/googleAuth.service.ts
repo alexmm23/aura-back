@@ -22,6 +22,7 @@ export const getGoogleAuthUrl = ({ state }: { state: string }) => {
     'https://www.googleapis.com/auth/drive.file', // ← Agrega este para subir archivos
     'https://www.googleapis.com/auth/classroom.coursework.me', // Para entregar tareas
     'https://www.googleapis.com/auth/classroom.student-submissions.me.readonly',
+    'https://www.googleapis.com/auth/classroom.coursework.students',
   ]
   const url = oauth2Client.generateAuthUrl({
     access_type: 'offline',

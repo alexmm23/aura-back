@@ -3,8 +3,8 @@ import { UserAttributes, UserCreationAttributes, UserLoginAttributes } from '../
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import { sendEmail } from './email.service.js'
-import env from '@/config/enviroment.js'
-import { generateRefreshToken, generateToken } from '@/utils/jwt.js'
+import env from '@/config/enviroment'
+import { generateRefreshToken, generateToken } from '@/utils/jwt'
 export const getAllUsers = async (): Promise<UserAttributes[]> => {
   try {
     const users: Array<UserAttributes> = (
