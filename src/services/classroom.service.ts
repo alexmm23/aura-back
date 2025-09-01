@@ -31,17 +31,24 @@ export const getClassroomAssignments = async (accessToken: string) => {
             userId: 'me',
           })
           const submissions = submissionsResponse.data.studentSubmissions || []
-          console.log('Submissions:', submissions)
-          const notTurnedIn = submissions.some(
+          console.log(
+            'Submissions for courseWork:',
+            work.id,
+            submissions.map((s) => ({ id: s.id, state: s.state })),
+          )
+
+          // Find the submission that is not turned in (CREATED or NEW state)
+          const pendingSubmission = submissions.find(
             (submission) => submission.state === 'CREATED' || submission.state === 'NEW',
           )
-          if (notTurnedIn) {
+
+          if (pendingSubmission) {
             return {
               id: work.id,
               title: work.title,
               courseId,
               courseWorkId: work.id,
-              submissionId: submissions[0]?.id || null,
+              submissionId: pendingSubmission.id || null,
               courseName: name,
               dueDate: work.dueDate,
               platform: 'classroom',
@@ -89,6 +96,7 @@ export const uploadFileToDrive = async (
   accessToken: string,
   fileBuffer: Buffer,
   fileName: string,
+  mimeType?: string,
 ) => {
   const oauth2Client = createOAuth2Client(accessToken)
   const drive = google.drive({ version: 'v3', auth: oauth2Client })
@@ -98,9 +106,11 @@ export const uploadFileToDrive = async (
   }
 
   const media = {
-    mimeType: 'application/octet-stream',
+    mimeType: mimeType || 'application/octet-stream',
     body: Readable.from(fileBuffer), // Convierte Buffer a stream directamente
   }
+
+  console.log('Uploading file to Drive:', { fileName, mimeType, bufferSize: fileBuffer.length })
 
   try {
     const file = await drive.files.create({
@@ -108,6 +118,7 @@ export const uploadFileToDrive = async (
       media: media,
     })
 
+    console.log('File uploaded successfully to Drive with ID:', file.data.id)
     return file.data.id
   } catch (error) {
     console.error('Error uploading file to Drive:', error)
@@ -266,6 +277,76 @@ export const getAssignmentRubric = async (
   }
 }
 
+export const turnInAssignmentWithFileSimple = async (
+  accessToken: string,
+  courseId: string,
+  courseWorkId: string,
+  submissionId: string,
+  driveFileId: string,
+) => {
+  const oauth2Client = createOAuth2Client(accessToken)
+  const classroom = google.classroom({ version: 'v1', auth: oauth2Client })
+  const drive = google.drive({ version: 'v3', auth: oauth2Client })
+
+  try {
+    // 1. Hacer el archivo público o compartido (opcional)
+    try {
+      await drive.permissions.create({
+        fileId: driveFileId,
+        requestBody: {
+          role: 'reader',
+          type: 'anyone', // o 'domain' si quieres limitarlo a tu dominio
+        },
+      })
+      console.log('File permissions set successfully')
+    } catch (permError: any) {
+      console.warn('Could not set file permissions:', permError.message)
+      // Continuar sin permisos públicos
+    }
+
+    // 2. Solo marcar como entregado (sin adjuntar el archivo)
+    const turnInResponse = await classroom.courses.courseWork.studentSubmissions.turnIn({
+      courseId,
+      courseWorkId,
+      id: submissionId,
+    })
+
+    return {
+      success: true,
+      submission: turnInResponse.data,
+      driveFileId,
+      note: 'File uploaded to Drive but not attached to submission due to API limitations. Share the Drive link manually if needed.',
+    }
+  } catch (error) {
+    console.error('Error in simple file submission:', error)
+    throw new Error('Failed to submit assignment with file')
+  }
+}
+
+export const getDriveFileLink = async (accessToken: string, driveFileId: string) => {
+  const oauth2Client = createOAuth2Client(accessToken)
+  const drive = google.drive({ version: 'v3', auth: oauth2Client })
+
+  try {
+    const file = await drive.files.get({
+      fileId: driveFileId,
+      fields: 'id,name,webViewLink,webContentLink,mimeType,size',
+    })
+
+    return {
+      id: file.data.id,
+      name: file.data.name,
+      viewLink: file.data.webViewLink,
+      downloadLink: file.data.webContentLink,
+      mimeType: file.data.mimeType,
+      size: file.data.size,
+    }
+  } catch (error) {
+    console.error('Error getting Drive file link:', error)
+    throw new Error('Failed to get file link')
+  }
+}
+
 export const turnInAssignmentWithFile = async (
   accessToken: string,
   courseId: string,
@@ -277,25 +358,34 @@ export const turnInAssignmentWithFile = async (
   const classroom = google.classroom({ version: 'v1', auth: oauth2Client })
 
   try {
-    // Solo adjuntamos el archivo sin marcar como entregado
-    const response = await classroom.courses.courseWork.studentSubmissions.modifyAttachments({
+    // Primero adjuntamos el archivo
+    const attachmentResponse =
+      await classroom.courses.courseWork.studentSubmissions.modifyAttachments({
+        courseId,
+        courseWorkId,
+        id: submissionId,
+        requestBody: {
+          addAttachments: [
+            {
+              driveFile: {
+                id: driveFileId,
+              },
+            },
+          ],
+        },
+      })
+
+    // Luego marcamos la tarea como entregada
+    const turnInResponse = await classroom.courses.courseWork.studentSubmissions.turnIn({
       courseId,
       courseWorkId,
       id: submissionId,
-      requestBody: {
-        addAttachments: [
-          {
-            driveFile: {
-              id: driveFileId,
-            },
-          },
-        ],
-      },
     })
 
     return {
       success: true,
-      submission: response.data,
+      submission: attachmentResponse.data,
+      turnInResult: turnInResponse.data,
     }
   } catch (error) {
     console.error('Error adding file to assignment:', error)
