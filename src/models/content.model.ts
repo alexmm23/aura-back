@@ -69,7 +69,7 @@ const Content = sequelize.define(
     },
   },
   {
-    tableName: 'Contents',
+    tableName: 'contents',
     timestamps: true,
     createdAt: 'created_at',
     updatedAt: 'updated_at',
