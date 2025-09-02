@@ -58,7 +58,7 @@ export async function getNotesByUserId(userId: number) {
 
     // Extract all contents from all pages in all notebooks
     const contents = notebooks.flatMap(
-      (notebook: any) => notebook.Pages?.flatMap((page: any) => page.Contents || []) || [],
+      (notebook: any) => notebook.Pages?.flatMap((page: any) => page.Content || []) || [],
     )
 
     return contents
