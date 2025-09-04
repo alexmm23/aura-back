@@ -1,4 +1,5 @@
 import express from 'express'
+import cookieParser from 'cookie-parser'
 import { userRouter } from './routers/user.router.js'
 import { authRouter } from './routers/auth.router.js'
 import { googleAuthRouter } from './routers/googleAuth.router.js'
@@ -18,6 +19,7 @@ const { API_BASE_PATH, CORS_ORIGIN, PORT } = env
 
 app.use(express.json({ limit: '50mb' }))
 app.use(express.urlencoded({ extended: true, limit: '50mb' }))
+app.use(cookieParser())
 app.use(
   cors({
     origin: CORS_ORIGIN,

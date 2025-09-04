@@ -34,6 +34,7 @@ userRouter.post('/create', async (req, res) => {
     res.status(500).json({ error: error.message })
   }
 })
+
 // Ruta protegida que requiere autenticación
 userRouter.get(
   '/profile',
@@ -193,4 +194,5 @@ userRouter.get(
     }
   },
 )
+
 export { userRouter }

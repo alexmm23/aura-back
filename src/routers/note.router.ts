@@ -91,7 +91,7 @@ router.get('/list', authenticateToken, async (req, res) => {
     })
   }
 })
-
+//Obtener notas de usuario por cuaderno
 router.get('/list/:notebookId', authenticateToken, async (req, res) => {
   try {
     const userId = req.user?.id
