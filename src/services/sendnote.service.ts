@@ -2,8 +2,7 @@ import sharp from 'sharp'
 import fs from 'fs/promises'
 import path from 'path'
 import { fileURLToPath } from 'url'
-import Content from '@/models/content.model'
-import Page from '@/models/pages.model'
+import { Content, Page } from '@/models/index'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -56,12 +55,12 @@ export async function saveCompressedPngImage({
   pageId,
   imageBuffer,
   x = 0,
-  y = 0
+  y = 0,
 }: SaveImageParams): Promise<SaveImageResult> {
   try {
     // Obtener metadatos originales
     const originalMetadata = await sharp(imageBuffer).metadata()
-    
+
     // Compress PNG using sharp
     const compressedBuffer = await sharp(imageBuffer)
       .png({ quality: 70, compressionLevel: 9 })
@@ -74,13 +73,13 @@ export async function saveCompressedPngImage({
     const storageDir = path.join(__dirname, '../../storage/images')
     const fileName = generateFileName(userId, pageId)
     const filePath = path.join(storageDir, fileName)
-    
+
     // Crear directorio si no existe
     await ensureDirectoryExists(storageDir)
-    
+
     // Guardar imagen en el sistema de archivos
     await fs.writeFile(filePath, compressedBuffer)
-    
+
     // Ruta relativa para guardar en BD (desde src/)
     const relativePath = `storage/images/${fileName}`
 
@@ -98,7 +97,7 @@ export async function saveCompressedPngImage({
     // Calcular estadísticas
     const originalSize = imageBuffer.length
     const compressedSize = compressedBuffer.length
-    const compressionRatio = ((originalSize - compressedSize) / originalSize * 100)
+    const compressionRatio = ((originalSize - compressedSize) / originalSize) * 100
 
     return {
       id: savedImage.id,
@@ -115,11 +114,10 @@ export async function saveCompressedPngImage({
         originalSize: `${(originalSize / 1024).toFixed(2)} KB`,
         compressedSize: `${(compressedSize / 1024).toFixed(2)} KB`,
         compressionRatio: `${compressionRatio.toFixed(2)}%`,
-        dimensions: `${finalMetadata.width}x${finalMetadata.height}`
-      }
+        dimensions: `${finalMetadata.width}x${finalMetadata.height}`,
+      },
     }
-  }
-  catch (error) {
+  } catch (error) {
     throw new Error(`Error saving compressed image: ${(error as Error).message}`)
   }
 }

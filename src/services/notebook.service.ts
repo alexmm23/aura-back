@@ -1,6 +1,4 @@
-import Notebook from '@/models/notebook.model'
-import Page from '@/models/pages.model'
-import Content from '@/models/content.model'
+import { Notebook, Page, Content } from '@/models/index'
 
 export class NotebookService {
   async createNotebook(userId: number, title: string) {
@@ -14,6 +12,12 @@ export class NotebookService {
     return await Notebook.findAll({
       where: { user_id: userId, deleted: false },
       order: [['created_at', 'DESC']],
+    })
+  }
+
+  async searchByName(title: string) {
+    return await Notebook.findOne({
+      where: { title: title, deleted: false },
     })
   }
 
@@ -99,6 +103,7 @@ export class NotebookService {
     return await Content.findAll({
       include: {
         model: Page,
+        as: 'page', // Usar el alias definido en la asociación
         where: { notebook_id: notebookId, deleted: false },
       },
       where: { deleted: false },
@@ -121,8 +126,10 @@ export class NotebookService {
     return await Content.findAll({
       include: {
         model: Page,
+        as: 'page', // Usar el alias definido en la asociación
         include: {
           model: Notebook,
+          as: 'notebook', // Usar el alias definido en la asociación
           where: { user_id: userId, deleted: false },
         },
       },

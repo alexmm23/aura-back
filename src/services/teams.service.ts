@@ -1,6 +1,6 @@
 import { Client } from '@microsoft/microsoft-graph-client'
 import { ClientSecretCredential } from '@azure/identity'
-import env from '@/config/enviroment.js'
+import env from '@/config/enviroment'
 
 const credential = new ClientSecretCredential(
   process.env.MS_TENANT_ID || env.MS_TENANT_ID,

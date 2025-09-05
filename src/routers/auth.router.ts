@@ -4,12 +4,15 @@ import jwt from 'jsonwebtoken'
 import { loginUser, resetPassword } from '@/services/user.service'
 import { UserLoginAttributes, UserAttributes } from '@/types/user.types'
 import { User } from '@/models/user.model'
+import { UserAccount } from '@/models/userAccount.model'
 import env from '@/config/enviroment'
 import { generateRefreshToken, generateToken } from '@/utils/jwt'
 import { authenticateToken } from '@/middlewares/auth.middleware'
+import { setAuthCookies, clearAuthCookies } from '@/utils/cookies'
 
 const authRouter = Router()
 
+// LOGIN PARA MÓVIL (con tokens en response)
 authRouter.post('/login', async (req: Request, res: Response) => {
   try {
     const loginData: UserLoginAttributes = req.body
@@ -25,6 +28,95 @@ authRouter.post('/login', async (req: Request, res: Response) => {
   }
 })
 
+// LOGIN PARA WEB (con cookies HttpOnly)
+authRouter.post('/login/web', async (req: Request, res: Response) => {
+  try {
+    const { email, password }: UserLoginAttributes = req.body
+
+    if (!email || !password) {
+      res.status(400).json({ error: 'Email and password are required' })
+      return
+    }
+
+    const { token: accessToken, refreshToken } = await loginUser({ email, password })
+
+    // Obtener información del usuario
+    const user = await User.findOne({
+      where: { email },
+      attributes: { exclude: ['password', 'refresh_token'] },
+    })
+
+    if (!user) {
+      res.status(404).json({ error: 'User not found after login' })
+      return
+    }
+
+    // Establecer cookies HttpOnly
+    setAuthCookies(res, accessToken, refreshToken)
+
+    // Obtener plataformas activas
+    const userAccounts = await UserAccount.findAll({
+      where: { user_id: user.id },
+      attributes: ['platform'],
+    })
+
+    const activePlatforms = userAccounts.map((account: any) => account.platform)
+
+    res.status(200).json({
+      message: 'Login successful',
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        lastname: user.lastname,
+        activePlatforms,
+      },
+    })
+  } catch (error: any) {
+    res.status(401).json({ error: error.message })
+  }
+})
+
+// VERIFICAR AUTENTICACIÓN (funciona tanto con cookies como con headers)
+authRouter.get('/check', authenticateToken, async (req: Request & { user?: UserAttributes }, res) => {
+  try {
+    const { user } = req
+
+    if (!user) {
+      res.status(401).json({ authenticated: false })
+      return
+    }
+
+    const userProfile = await User.findOne({
+      where: { id: user.id },
+      attributes: { exclude: ['password', 'refresh_token'] },
+    })
+
+    if (!userProfile) {
+      res.status(404).json({ authenticated: false })
+      return
+    }
+
+    const userAccounts = await UserAccount.findAll({
+      where: { user_id: user.id },
+      attributes: ['platform'],
+    })
+
+    const activePlatforms = userAccounts.map((account: any) => account.platform)
+
+    res.status(200).json({
+      authenticated: true,
+      user: {
+        ...userProfile.toJSON(),
+        activePlatforms,
+      },
+    })
+  } catch (error: any) {
+    res.status(500).json({ authenticated: false, error: error.message })
+  }
+})
+
+// REFRESH TOKEN (para móvil)
 authRouter.post('/token/refresh', async (req: Request, res: Response) => {
   try {
     const { refreshToken } = req.body
@@ -39,8 +131,7 @@ authRouter.post('/token/refresh', async (req: Request, res: Response) => {
       res.status(404).json({ error: 'User not found' })
       return
     }
-    console.log('user', user)
-    console.log('refreshToken', refreshToken)
+
     if (user.refresh_token != refreshToken) {
       res.status(401).json({ error: 'Invalid refresh token' })
       return
@@ -58,6 +149,7 @@ authRouter.post('/token/refresh', async (req: Request, res: Response) => {
   }
 })
 
+// VERIFICAR TOKEN (para móvil)
 authRouter.post('/token/verify', async (req: Request, res: Response) => {
   try {
     const { token } = req.body
@@ -82,6 +174,7 @@ authRouter.post('/token/verify', async (req: Request, res: Response) => {
   }
 })
 
+// RESET PASSWORD
 authRouter.post('/reset-password', async (req: Request, res: Response) => {
   try {
     const { email } = req.body
@@ -97,6 +190,7 @@ authRouter.post('/reset-password', async (req: Request, res: Response) => {
   }
 })
 
+// LOGOUT PARA MÓVIL (con tokens)
 authRouter.post('/logout', authenticateToken, async (req: Request, res: Response) => {
   try {
     const user = (req as any).user
@@ -116,7 +210,6 @@ authRouter.post('/logout', authenticateToken, async (req: Request, res: Response
       },
     )
 
-    // Responde con éxito
     res.status(200).json({
       success: true,
       message: 'Logged out successfully',
@@ -124,6 +217,33 @@ authRouter.post('/logout', authenticateToken, async (req: Request, res: Response
   } catch (error: any) {
     console.error('Error during logout:', error)
     res.status(500).json({ error: 'An error occurred during logout' })
+  }
+})
+
+// LOGOUT PARA WEB (limpia cookies)
+authRouter.post('/logout/web', authenticateToken, async (req: Request & { user?: UserAttributes }, res) => {
+  try {
+    const { user } = req
+
+    if (!user) {
+      res.status(401).json({ error: 'Unauthorized' })
+      return
+    }
+
+    // Limpiar refresh token de la base de datos
+    await User.update(
+      { refresh_token: null },
+      { where: { id: user.id } }
+    )
+
+    // Limpiar cookies
+    clearAuthCookies(res)
+
+    res.status(200).json({
+      message: 'Logout successful'
+    })
+  } catch (error: any) {
+    res.status(500).json({ error: error.message })
   }
 })
 

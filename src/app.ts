@@ -1,4 +1,5 @@
 import express from 'express'
+import cookieParser from 'cookie-parser'
 import { userRouter } from './routers/user.router.js'
 import { authRouter } from './routers/auth.router.js'
 import { googleAuthRouter } from './routers/googleAuth.router.js'
@@ -10,12 +11,16 @@ import teamsRouter from './routers/teams.router.js'
 import { notebookRouter } from './routers/notebook.router.js'
 import { noteRouter } from './routers/note.router.js'
 import { paymentRouter } from './routers/payment.router'
+
+// Importar modelos con asociaciones configuradas
+import './models/index.js'
+
 const app = express()
 const { API_BASE_PATH, CORS_ORIGIN, PORT } = env
 
-app.use(express.json())
-app.use(express.urlencoded({ extended: true }))
-app.use('/api/note', noteRouter)
+app.use(express.json({ limit: '50mb' }))
+app.use(express.urlencoded({ extended: true, limit: '50mb' }))
+app.use(cookieParser())
 app.use('/api/payment', paymentRouter)
 app.use(
   cors({

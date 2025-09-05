@@ -3,9 +3,18 @@ import { authenticateToken } from '@/middlewares/auth.middleware'
 import upload from '@/middlewares/upload.middleware'
 import {
   getClassroomAssignments,
+  getAssignmentDetails,
+  getAssignmentRubric,
+  getDriveFileLink,
+  testClassroomConnection,
   turnInAssignment,
   turnInAssignmentWithFile,
+  turnInAssignmentWithFileSimple,
+  uploadFileOnly,
   uploadFileToDrive,
+  diagnosePermissions,
+  testTurnInProcess,
+  attachFileToSubmission,
 } from '@/services/classroom.service'
 import { UserAttributes } from '@/types/user.types'
 import { UserAccount } from '@/models/userAccount.model'
@@ -14,6 +23,289 @@ import { getTeamsTasks } from '@/services/teams.service'
 
 const studentRouter = Router()
 studentRouter.use(authenticateToken)
+
+// Test endpoint to check server limits
+studentRouter.get(
+  '/test/limits',
+  async (req: Request & { user?: UserAttributes }, res: Response) => {
+    res.status(200).json({
+      maxJsonSize: '50MB',
+      maxUrlEncodedSize: '50MB',
+      serverInfo: {
+        nodeVersion: process.version,
+        platform: process.platform,
+        memory: process.memoryUsage(),
+      },
+    })
+  },
+)
+
+// Test Classroom API connection
+studentRouter.get(
+  '/test/classroom',
+  async (req: Request & { user?: UserAttributes }, res: Response) => {
+    try {
+      const { user } = req
+      if (!user) {
+        res.status(401).json({ error: 'Unauthorized' })
+        return
+      }
+
+      const googleAccount = await UserAccount.findOne({
+        where: {
+          user_id: user.id,
+          platform: 'google',
+        },
+      })
+
+      if (!googleAccount || !googleAccount.access_token) {
+        res.status(401).json({ error: 'No Google account linked' })
+        return
+      }
+
+      let accessToken = googleAccount.access_token
+
+      // Check if token is expired and refresh if needed
+      if (googleAccount.expiry_date && new Date(googleAccount.expiry_date) < new Date()) {
+        try {
+          accessToken = await getNewAccessToken(user.id)
+        } catch (error: any) {
+          res.status(401).json({
+            error: 'Token expired and refresh failed',
+            details: error.message,
+          })
+          return
+        }
+      }
+
+      const testResult = await testClassroomConnection(accessToken!)
+      res.status(200).json(testResult)
+    } catch (error: any) {
+      console.error('Error testing classroom connection:', error)
+      res.status(500).json({
+        error: 'Test failed',
+        details: error.message,
+      })
+    }
+  },
+)
+
+// ====== ENDPOINTS DE DIAGNÓSTICO AVANZADO ======
+
+// Endpoint para diagnosticar permisos completos
+studentRouter.get(
+  '/test-permissions',
+  authenticateToken,
+  async (req: Request & { user?: UserAttributes }, res: Response) => {
+    try {
+      const { user } = req
+      if (!user) {
+        res.status(401).json({ error: 'Unauthorized' })
+        return
+      }
+
+      const googleAccount = await UserAccount.findOne({
+        where: { user_id: user.id, platform: 'google' },
+      })
+
+      if (!googleAccount || !googleAccount.access_token) {
+        res.status(401).json({ error: 'Google account not connected' })
+        return
+      }
+
+      let accessToken = googleAccount.access_token
+
+      // Check if token is expired and refresh if needed
+      if (googleAccount.expiry_date && new Date(googleAccount.expiry_date) < new Date()) {
+        try {
+          accessToken = await getNewAccessToken(user.id)
+        } catch (error: any) {
+          res.status(401).json({
+            error: 'Token expired and refresh failed',
+            details: error.message,
+          })
+          return
+        }
+      }
+
+      const diagnosisResult = await diagnosePermissions(accessToken!)
+      res.status(200).json({
+        message: 'Permission diagnosis completed',
+        results: diagnosisResult,
+        recommendations: generateRecommendations(diagnosisResult),
+      })
+    } catch (error: any) {
+      console.error('Error diagnosing permissions:', error)
+      res.status(500).json({
+        error: 'Diagnosis failed',
+        details: error.message,
+      })
+    }
+  },
+)
+
+// Endpoint para testear el proceso completo de turnIn
+studentRouter.get(
+  '/test-turnin/:courseId/:courseWorkId',
+  authenticateToken,
+  async (req: Request & { user?: UserAttributes }, res: Response) => {
+    try {
+      const { user } = req
+      const { courseId, courseWorkId } = req.params
+
+      if (!user) {
+        res.status(401).json({ error: 'Unauthorized' })
+        return
+      }
+
+      const googleAccount = await UserAccount.findOne({
+        where: { user_id: user.id, platform: 'google' },
+      })
+
+      if (!googleAccount || !googleAccount.access_token) {
+        res.status(401).json({ error: 'Google account not connected' })
+        return
+      }
+
+      let accessToken = googleAccount.access_token
+
+      // Check if token is expired and refresh if needed
+      if (googleAccount.expiry_date && new Date(googleAccount.expiry_date) < new Date()) {
+        try {
+          accessToken = await getNewAccessToken(user.id)
+        } catch (error: any) {
+          res.status(401).json({
+            error: 'Token expired and refresh failed',
+            details: error.message,
+          })
+          return
+        }
+      }
+
+      const testResult = await testTurnInProcess(accessToken!, courseId, courseWorkId)
+      res.status(200).json({
+        message: 'TurnIn process test completed',
+        results: testResult,
+      })
+    } catch (error: any) {
+      console.error('Error testing turnIn process:', error)
+      res.status(500).json({
+        error: 'TurnIn test failed',
+        details: error.message,
+      })
+    }
+  },
+)
+
+// Endpoint para solo adjuntar archivo (sin turnIn)
+studentRouter.post(
+  '/homework/:courseId/:courseWorkId/attach-file',
+  authenticateToken,
+  async (req: Request & { user?: UserAttributes }, res: Response) => {
+    try {
+      const { user } = req
+      const { courseId, courseWorkId } = req.params
+      const { submissionId, file } = req.body
+
+      if (!user) {
+        res.status(401).json({ error: 'Unauthorized' })
+        return
+      }
+
+      if (!file || !file.data) {
+        res.status(400).json({ error: 'No file provided' })
+        return
+      }
+
+      const googleAccount = await UserAccount.findOne({
+        where: { user_id: user.id, platform: 'google' },
+      })
+
+      if (!googleAccount || !googleAccount.access_token) {
+        res.status(401).json({ error: 'Google account not connected' })
+        return
+      }
+
+      let accessToken = googleAccount.access_token
+
+      // Check if token is expired and refresh if needed
+      if (googleAccount.expiry_date && new Date(googleAccount.expiry_date) < new Date()) {
+        try {
+          accessToken = await getNewAccessToken(user.id)
+        } catch (error: any) {
+          res.status(401).json({
+            error: 'Token expired and refresh failed',
+            details: error.message,
+          })
+          return
+        }
+      }
+
+      // Convert base64 to buffer
+      const base64Data = file.data.replace(/^data:.*?;base64,/, '')
+      const fileBuffer = Buffer.from(base64Data, 'base64')
+
+      // Upload file to Drive
+      const driveFileId = await uploadFileToDrive(
+        accessToken!,
+        fileBuffer,
+        file.name,
+        file.mimeType,
+      )
+
+      // Use upload-only method (evita problemas de permisos de modifyAttachments)
+      const result = await uploadFileOnly(
+        accessToken!,
+        courseId,
+        courseWorkId,
+        submissionId,
+        driveFileId!,
+      )
+
+      res.status(200).json({
+        ...result,
+        note: 'File uploaded successfully - manual attachment required due to API permissions',
+      })
+    } catch (error: any) {
+      console.error('Error attaching file:', error)
+      res.status(500).json({
+        error: 'Failed to attach file',
+        details: error.message,
+      })
+    }
+  },
+)
+
+// Helper function para generar recomendaciones
+function generateRecommendations(diagnosis: any) {
+  const recommendations = []
+
+  if (!diagnosis.userProfile?.success) {
+    recommendations.push('❌ Cannot access user profile - Check basic Classroom API access')
+  }
+
+  if (!diagnosis.listCourses?.success) {
+    recommendations.push('❌ Cannot list courses - Verify Classroom API is enabled')
+  }
+
+  if (!diagnosis.driveAccess?.success) {
+    recommendations.push('❌ Cannot access Drive - Check Drive API permissions')
+  }
+
+  if (!diagnosis.courseWorkAccess?.success) {
+    recommendations.push('❌ Cannot access courseWork - May need teacher permissions')
+  }
+
+  if (!diagnosis.submissionsAccess?.success) {
+    recommendations.push('❌ Cannot access submissions - Student submission permissions missing')
+  }
+
+  if (diagnosis.errors.length === 0) {
+    recommendations.push('✅ All basic permissions working correctly')
+  }
+
+  return recommendations
+}
 
 studentRouter.get('/homework', async (req: Request & { user?: UserAttributes }, res: Response) => {
   try {
@@ -48,11 +340,21 @@ studentRouter.get('/homework', async (req: Request & { user?: UserAttributes }, 
 
       if (accessToken) {
         try {
+          console.log('Attempting to fetch classroom assignments with access token...')
           const classroomHomework = await getClassroomAssignments(accessToken)
+          console.log(`Successfully fetched ${classroomHomework.length} assignments`)
           allHomework = [...allHomework, ...classroomHomework]
-        } catch (error) {
-          console.error('Error fetching Google Classroom assignments:', error)
+        } catch (error: any) {
+          console.error('Error fetching Google Classroom assignments - Full details:', {
+            message: error.message,
+            code: error.code,
+            status: error.status,
+            stack: error.stack,
+          })
+          // Don't throw error, continue without Google assignments
         }
+      } else {
+        console.warn('No valid access token available for Google Classroom')
       }
     }
 
@@ -105,43 +407,59 @@ studentRouter.get('/homework', async (req: Request & { user?: UserAttributes }, 
   }
 })
 
-// Turn in assignment without file
+// Submit assignment without file
 studentRouter.post(
-  '/homework/classroom/turnin',
+  '/homework/:courseId/:courseWorkId/submit',
   async (req: Request & { user?: UserAttributes }, res: Response) => {
     try {
-      const { submissionId, courseId, courseWorkId } = req.body
-
-      if (!submissionId || !courseId || !courseWorkId) {
-        res.status(400).json({ error: 'Submission ID, Course ID and CourseWork ID are required' })
-        return
-      }
-
+      const { courseId, courseWorkId } = req.params
+      const { submissionId, text, metadata } = req.body
       const { user } = req
+
+      console.log('Received text-only submission:', {
+        courseId,
+        courseWorkId,
+        submissionId,
+        hasText: !!text,
+        metadata,
+      })
+
       if (!user) {
         res.status(401).json({ error: 'Unauthorized' })
         return
       }
 
-      const userAccount = await UserAccount.findOne({
+      if (!courseId || !courseWorkId) {
+        res.status(400).json({ error: 'Course ID and CourseWork ID are required' })
+        return
+      }
+
+      if (!submissionId) {
+        res.status(400).json({ error: 'Submission ID is required' })
+        return
+      }
+
+      // Get Google account
+      const googleAccount = await UserAccount.findOne({
         where: {
           user_id: user.id,
           platform: 'google',
         },
       })
 
-      if (!userAccount || !userAccount.access_token) {
+      if (!googleAccount || !googleAccount.access_token) {
         res.status(401).json({ error: 'No Google account linked' })
         return
       }
 
-      let accessToken = userAccount.access_token
+      let accessToken = googleAccount.access_token
 
       // Check if token is expired and refresh if needed
-      if (userAccount.expiry_date && new Date(userAccount.expiry_date) < new Date()) {
+      if (googleAccount.expiry_date && new Date(googleAccount.expiry_date) < new Date()) {
         try {
           accessToken = await getNewAccessToken(user.id)
         } catch (error: any) {
+          console.error('Failed to refresh Google token:', error)
           if (error.message.includes('re-authorize')) {
             res.status(401).json({
               error: 'Google authorization expired. Please re-authenticate.',
@@ -157,58 +475,74 @@ studentRouter.post(
       const result = await turnInAssignment(courseId, courseWorkId, submissionId, accessToken!)
 
       if (!result.success) {
-        res.status(404).json({ error: 'Failed to turn in assignment' })
+        res.status(400).json({ error: 'Failed to submit assignment' })
         return
       }
 
-      res.status(200).json({ success: true, message: 'Assignment turned in successfully' })
+      res.status(200).json({
+        success: true,
+        message: 'Assignment submitted successfully',
+        submissionId,
+        text: text || null,
+        metadata,
+      })
     } catch (error) {
-      console.error('Error turning in assignment:', error)
+      console.error('Error submitting assignment:', error)
       res.status(500).json({ error: 'Internal Server Error' })
     }
   },
 )
 
-// Turn in assignment with file
+// Submit assignment with file
 studentRouter.post(
-  '/homework/classroom/turnin-with-file',
-  upload.single('file'),
+  '/homework/:courseId/:courseWorkId/submit-file',
   async (req: Request & { user?: UserAttributes }, res: Response) => {
     try {
-      const { submissionId, courseId, courseWorkId } = req.body
-
-      if (!submissionId || !courseId || !courseWorkId) {
-        res.status(400).json({ error: 'Submission ID, Course ID and CourseWork ID are required' })
-        return
-      }
-
-      if (!req.file) {
-        res.status(400).json({ error: 'File is required for this endpoint' })
-        return
-      }
-
+      const { courseId, courseWorkId } = req.params
+      const { submissionId, text, file, metadata } = req.body
       const { user } = req
+
+      console.log('Received submission request:', {
+        courseId,
+        courseWorkId,
+        submissionId,
+        hasFile: !!file,
+        hasText: !!text,
+        metadata,
+      })
+
       if (!user) {
         res.status(401).json({ error: 'Unauthorized' })
         return
       }
 
-      const userAccount = await UserAccount.findOne({
+      if (!courseId || !courseWorkId) {
+        res.status(400).json({ error: 'Course ID and CourseWork ID are required' })
+        return
+      }
+
+      if (!submissionId) {
+        res.status(400).json({ error: 'Submission ID is required' })
+        return
+      }
+
+      // Get Google account
+      const googleAccount = await UserAccount.findOne({
         where: {
           user_id: user.id,
           platform: 'google',
         },
       })
 
-      if (!userAccount || !userAccount.access_token) {
+      if (!googleAccount || !googleAccount.access_token) {
         res.status(401).json({ error: 'No Google account linked' })
         return
       }
 
-      let accessToken = userAccount.access_token
+      let accessToken = googleAccount.access_token
 
       // Check if token is expired and refresh if needed
-      if (userAccount.expiry_date && new Date(userAccount.expiry_date) < new Date()) {
+      if (googleAccount.expiry_date && new Date(googleAccount.expiry_date) < new Date()) {
         try {
           accessToken = await getNewAccessToken(user.id)
         } catch (error: any) {
@@ -224,11 +558,243 @@ studentRouter.post(
         }
       }
 
-      // Upload file to Google Drive first
+      let driveFileId = null
+
+      // If file is provided, upload to Google Drive
+      if (file && file.data) {
+        try {
+          console.log('Processing file upload:', {
+            name: file.name,
+            mimeType: file.mimeType,
+            size: file.size,
+            hasData: !!file.data,
+          })
+
+          // Validate file size (limit to 25MB before base64 encoding)
+          if (file.size && file.size > 25 * 1024 * 1024) {
+            res.status(413).json({
+              error: 'File too large. Maximum size allowed is 25MB',
+              maxSize: '25MB',
+              receivedSize: `${Math.round(file.size / 1024 / 1024)}MB`,
+            })
+            return
+          }
+
+          // Convert base64 to buffer
+          const base64Data = file.data.replace(/^data:.*?;base64,/, '')
+
+          // Validate base64 data
+          if (!base64Data || base64Data.length === 0) {
+            res
+              .status(400)
+              .json({ error: 'Invalid file data. File appears to be empty or corrupted.' })
+            return
+          }
+
+          const fileBuffer = Buffer.from(base64Data, 'base64')
+
+          console.log('File buffer created:', {
+            originalSize: file.size,
+            base64Size: base64Data.length,
+            bufferSize: fileBuffer.length,
+          })
+
+          driveFileId = await uploadFileToDrive(accessToken!, fileBuffer, file.name, file.mimeType)
+
+          if (!driveFileId) {
+            res.status(500).json({ error: 'Failed to upload file to Google Drive' })
+            return
+          }
+
+          console.log('File uploaded to Drive with ID:', driveFileId)
+        } catch (fileError) {
+          console.error('Error processing file:', fileError)
+          res.status(400).json({ error: 'Failed to process file upload' })
+          return
+        }
+      }
+
+      // Submit assignment (with or without file)
+      if (driveFileId) {
+        try {
+          // Try the full attachment method first
+          const result = await turnInAssignmentWithFile(
+            accessToken!,
+            courseId,
+            courseWorkId,
+            submissionId,
+            driveFileId,
+          )
+
+          res.status(200).json({
+            success: true,
+            message: 'Assignment submitted successfully with file attached',
+            submissionId,
+            driveFileId,
+            fileName: file.name,
+            text: text || null,
+          })
+        } catch (attachmentError: any) {
+          console.warn(
+            'Failed to attach file to submission, trying simple method:',
+            attachmentError.message,
+          )
+
+          // If attachment fails due to permissions, use simple method
+          try {
+            const result = await turnInAssignmentWithFileSimple(
+              accessToken!,
+              courseId,
+              courseWorkId,
+              submissionId,
+              driveFileId,
+            )
+
+            // Get file link for user reference
+            let fileLink = null
+            try {
+              fileLink = await getDriveFileLink(accessToken!, driveFileId)
+            } catch (linkError) {
+              console.warn('Could not get file link:', linkError)
+            }
+
+            res.status(200).json({
+              success: true,
+              message:
+                'Assignment submitted - file uploaded to Drive (share link manually with teacher)',
+              submissionId,
+              driveFileId,
+              fileName: file.name,
+              text: text || null,
+              fileLink: fileLink,
+              instructions:
+                'The file was uploaded to your Google Drive. You may need to share the link with your teacher manually.',
+            })
+          } catch (simpleError) {
+            console.error(
+              'Both attachment and simple methods failed, trying upload-only:',
+              simpleError,
+            )
+
+            // Last resort: just upload file and make it shareable
+            try {
+              const uploadResult = await uploadFileOnly(
+                accessToken!,
+                courseId,
+                courseWorkId,
+                submissionId,
+                driveFileId,
+              )
+
+              res.status(200).json({
+                success: true,
+                message: 'File uploaded successfully - manual submission required',
+                submissionId,
+                driveFileId,
+                fileName: file.name,
+                text: text || null,
+                fileInfo: uploadResult.fileInfo,
+                instructions: uploadResult.instructions,
+                note: 'Due to API restrictions, please submit this assignment manually in Google Classroom using the provided link.',
+              })
+            } catch (uploadError) {
+              console.error('All methods failed:', uploadError)
+              res.status(500).json({
+                error: 'Could not process assignment submission',
+                details:
+                  'Google Classroom API permissions are insufficient. Please check Google Cloud Console configuration.',
+                driveFileId: driveFileId,
+                message: 'File was uploaded to Drive but could not be submitted to Classroom',
+              })
+            }
+          }
+        }
+      } else {
+        // Submit without file
+        const result = await turnInAssignment(courseId, courseWorkId, submissionId, accessToken!)
+
+        if (!result.success) {
+          res.status(400).json({ error: 'Failed to submit assignment' })
+          return
+        }
+
+        res.status(200).json({
+          success: true,
+          message: 'Assignment submitted successfully',
+          submissionId,
+          text: text || null,
+        })
+      }
+    } catch (error) {
+      console.error('Error submitting assignment:', error)
+      res.status(500).json({ error: 'Internal Server Error' })
+    }
+  },
+)
+
+// Upload file only (no submission) - for when API permissions are limited
+studentRouter.post(
+  '/homework/:courseId/:courseWorkId/upload-only',
+  async (req: Request & { user?: UserAttributes }, res: Response) => {
+    try {
+      const { courseId, courseWorkId } = req.params
+      const { submissionId, text, file, metadata } = req.body
+      const { user } = req
+
+      console.log('Upload-only request:', { courseId, courseWorkId, submissionId, hasFile: !!file })
+
+      if (!user) {
+        res.status(401).json({ error: 'Unauthorized' })
+        return
+      }
+
+      if (!courseId || !courseWorkId || !submissionId) {
+        res.status(400).json({ error: 'Missing required parameters' })
+        return
+      }
+
+      if (!file || !file.data) {
+        res.status(400).json({ error: 'File is required for this endpoint' })
+        return
+      }
+
+      // Get Google account
+      const googleAccount = await UserAccount.findOne({
+        where: { user_id: user.id, platform: 'google' },
+      })
+
+      if (!googleAccount?.access_token) {
+        res.status(401).json({ error: 'No Google account linked' })
+        return
+      }
+
+      let accessToken = googleAccount.access_token
+
+      if (googleAccount.expiry_date && new Date(googleAccount.expiry_date) < new Date()) {
+        try {
+          accessToken = await getNewAccessToken(user.id)
+        } catch (error: any) {
+          if (error.message.includes('re-authorize')) {
+            res.status(401).json({
+              error: 'Google authorization expired. Please re-authenticate.',
+              needsAuth: true,
+              authUrl: '/api/auth/google',
+            })
+            return
+          }
+          throw error
+        }
+      }
+
+      // Upload file to Drive
+      const base64Data = file.data.replace(/^data:.*?;base64,/, '')
+      const fileBuffer = Buffer.from(base64Data, 'base64')
+
       const driveFileId = await uploadFileToDrive(
         accessToken!,
-        req.file.buffer,
-        req.file.originalname,
+        fileBuffer,
+        file.name,
+        file.mimeType,
       )
 
       if (!driveFileId) {
@@ -236,8 +802,8 @@ studentRouter.post(
         return
       }
 
-      // Then turn in assignment with the file
-      await turnInAssignmentWithFile(
+      // Use upload-only method
+      const result = await uploadFileOnly(
         accessToken!,
         courseId,
         courseWorkId,
@@ -247,11 +813,247 @@ studentRouter.post(
 
       res.status(200).json({
         success: true,
-        message: 'Assignment turned in successfully with file',
+        message: 'File uploaded and made shareable',
+        submissionId,
         driveFileId,
+        fileName: file.name,
+        text: text || null,
+        fileInfo: result.fileInfo,
+        instructions: result.instructions,
       })
+    } catch (error: any) {
+      console.error('Error in upload-only endpoint:', error)
+      res.status(500).json({ error: 'Internal Server Error', details: error.message })
+    }
+  },
+)
+
+// Submit assignment with file (alternative multipart endpoint for large files)
+studentRouter.post(
+  '/homework/:courseId/:courseWorkId/submit-multipart',
+  upload.single('file'),
+  async (req: Request & { user?: UserAttributes }, res: Response) => {
+    try {
+      const { courseId, courseWorkId } = req.params
+      const { submissionId, text, metadata } = req.body
+      const { user } = req
+
+      console.log('Received multipart submission:', {
+        courseId,
+        courseWorkId,
+        submissionId,
+        hasFile: !!req.file,
+        hasText: !!text,
+        fileSize: req.file?.size,
+        metadata: metadata ? JSON.parse(metadata) : null,
+      })
+
+      if (!user) {
+        res.status(401).json({ error: 'Unauthorized' })
+        return
+      }
+
+      if (!courseId || !courseWorkId || !submissionId) {
+        res.status(400).json({ error: 'Missing required parameters' })
+        return
+      }
+
+      // Get Google account and handle authentication (same as other endpoints)
+      const googleAccount = await UserAccount.findOne({
+        where: { user_id: user.id, platform: 'google' },
+      })
+
+      if (!googleAccount?.access_token) {
+        res.status(401).json({ error: 'No Google account linked' })
+        return
+      }
+
+      let accessToken = googleAccount.access_token
+
+      if (googleAccount.expiry_date && new Date(googleAccount.expiry_date) < new Date()) {
+        try {
+          accessToken = await getNewAccessToken(user.id)
+        } catch (error: any) {
+          if (error.message.includes('re-authorize')) {
+            res.status(401).json({
+              error: 'Google authorization expired. Please re-authenticate.',
+              needsAuth: true,
+              authUrl: '/api/auth/google',
+            })
+            return
+          }
+          throw error
+        }
+      }
+
+      // Handle file upload if present
+      let driveFileId = null
+      if (req.file?.buffer) {
+        driveFileId = await uploadFileToDrive(
+          accessToken!,
+          req.file.buffer,
+          req.file.originalname,
+          req.file.mimetype,
+        )
+      }
+
+      // Submit assignment
+      if (driveFileId) {
+        await turnInAssignmentWithFile(
+          accessToken!,
+          courseId,
+          courseWorkId,
+          submissionId,
+          driveFileId,
+        )
+        res.status(200).json({
+          success: true,
+          message: 'Assignment submitted with file',
+          submissionId,
+          driveFileId,
+          fileName: req.file?.originalname,
+          text: text || null,
+        })
+      } else {
+        const result = await turnInAssignment(courseId, courseWorkId, submissionId, accessToken!)
+        res.status(200).json({
+          success: true,
+          message: 'Assignment submitted',
+          submissionId,
+          text: text || null,
+        })
+      }
     } catch (error) {
-      console.error('Error turning in assignment with file:', error)
+      console.error('Error in multipart submission:', error)
+      res.status(500).json({ error: 'Internal Server Error' })
+    }
+  },
+)
+
+// Get assignment details
+studentRouter.get(
+  '/homework/:courseId/:courseWorkId',
+  async (req: Request & { user?: UserAttributes }, res: Response) => {
+    try {
+      const { courseId, courseWorkId } = req.params
+      const { user } = req
+
+      if (!user) {
+        res.status(401).json({ error: 'Unauthorized' })
+        return
+      }
+
+      if (!courseId || !courseWorkId) {
+        res.status(400).json({ error: 'Course ID and CourseWork ID are required' })
+        return
+      }
+
+      // Get Google account
+      const googleAccount = await UserAccount.findOne({
+        where: {
+          user_id: user.id,
+          platform: 'google',
+        },
+      })
+
+      if (!googleAccount || !googleAccount.access_token) {
+        res.status(401).json({ error: 'No Google account linked' })
+        return
+      }
+
+      let accessToken = googleAccount.access_token
+
+      // Check if token is expired and refresh if needed
+      if (googleAccount.expiry_date && new Date(googleAccount.expiry_date) < new Date()) {
+        try {
+          accessToken = await getNewAccessToken(user.id)
+        } catch (error: any) {
+          console.error('Failed to refresh Google token:', error)
+          if (error.message.includes('re-authorize')) {
+            res.status(401).json({
+              error: 'Google authorization expired. Please re-authenticate.',
+              needsAuth: true,
+              authUrl: '/api/auth/google',
+            })
+            return
+          }
+          throw error
+        }
+      }
+
+      // Get assignment details
+      const assignmentDetails = await getAssignmentDetails(accessToken!, courseId, courseWorkId)
+
+      res.status(200).json(assignmentDetails)
+    } catch (error) {
+      console.error('Error fetching assignment details:', error)
+      res.status(500).json({ error: 'Internal Server Error' })
+    }
+  },
+)
+
+// Get assignment rubric
+studentRouter.get(
+  '/homework/:courseId/:courseWorkId/rubric',
+  async (req: Request & { user?: UserAttributes }, res: Response) => {
+    try {
+      const { courseId, courseWorkId } = req.params
+      const { user } = req
+
+      if (!user) {
+        res.status(401).json({ error: 'Unauthorized' })
+        return
+      }
+
+      if (!courseId || !courseWorkId) {
+        res.status(400).json({ error: 'Course ID and CourseWork ID are required' })
+        return
+      }
+
+      // Get Google account
+      const googleAccount = await UserAccount.findOne({
+        where: {
+          user_id: user.id,
+          platform: 'google',
+        },
+      })
+
+      if (!googleAccount || !googleAccount.access_token) {
+        res.status(401).json({ error: 'No Google account linked' })
+        return
+      }
+
+      let accessToken = googleAccount.access_token
+
+      // Check if token is expired and refresh if needed
+      if (googleAccount.expiry_date && new Date(googleAccount.expiry_date) < new Date()) {
+        try {
+          accessToken = await getNewAccessToken(user.id)
+        } catch (error: any) {
+          console.error('Failed to refresh Google token:', error)
+          if (error.message.includes('re-authorize')) {
+            res.status(401).json({
+              error: 'Google authorization expired. Please re-authenticate.',
+              needsAuth: true,
+              authUrl: '/api/auth/google',
+            })
+            return
+          }
+          throw error
+        }
+      }
+
+      // Get assignment rubric
+      const rubric = await getAssignmentRubric(accessToken!, courseId, courseWorkId)
+
+      if (!rubric) {
+        res.status(404).json({ error: 'No rubric found for this assignment' })
+        return
+      }
+
+      res.status(200).json(rubric)
+    } catch (error) {
+      console.error('Error fetching assignment rubric:', error)
       res.status(500).json({ error: 'Internal Server Error' })
     }
   },

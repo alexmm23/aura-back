@@ -27,12 +27,16 @@ notebookRouter.post('/add', authenticateToken, async (req: Request, res: Respons
     const { title } = req.body
     const userId = req.user?.id // Obtener userId del token
     console.log('User ID from token:', userId)
-    
+
     if (!userId) {
       res.status(400).json({ error: 'User ID not found in token' })
       return
     }
-    
+    const existingNotebook = await notebookService.searchByName(title)
+    if (existingNotebook) {
+      res.status(409).json({ error: 'Notebook with this title already exists' })
+      return
+    }
     const notebook = await notebookService.createNotebook(userId, title)
     res.status(201).json(notebook)
   } catch (error) {
@@ -43,12 +47,12 @@ notebookRouter.post('/add', authenticateToken, async (req: Request, res: Respons
 notebookRouter.get('/list', authenticateToken, async (req: Request, res: Response) => {
   try {
     const userId = req.user?.id // Obtener userId del token
-    
+
     if (!userId) {
       res.status(400).json({ error: 'User ID not found in token' })
       return
     }
-    
+
     const notebooks = await notebookService.getNotebooks(Number(userId))
     res.status(200).json(notebooks)
   } catch (error) {
@@ -78,11 +82,10 @@ notebookRouter.put('/edit/:id', authenticateToken, async (req: Request, res: Res
       return
     }
     const updatedNotebook = await notebookService.updateNotebook(notebookId, title)
-    res.status(200).json({message: 'Notebook updated successfully' })
+    res.status(200).json({ message: 'Notebook updated successfully' })
   } catch (error) {
     res.status(500).json({ error: `Internal Server Error: ${error}` })
   }
 })
-
 
 export { notebookRouter }
