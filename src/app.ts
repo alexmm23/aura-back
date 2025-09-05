@@ -9,12 +9,14 @@ import oauthRouter from './routers/oauth.router.js'
 import teamsRouter from './routers/teams.router.js'
 import { notebookRouter } from './routers/notebook.router.js'
 import { noteRouter } from './routers/note.router.js'
+import { paymentRouter } from './routers/payment.router'
 const app = express()
 const { API_BASE_PATH, CORS_ORIGIN, PORT } = env
 
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 app.use('/api/note', noteRouter)
+app.use('/api/payment', paymentRouter)
 app.use(
   cors({
     origin: CORS_ORIGIN,

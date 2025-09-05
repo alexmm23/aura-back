@@ -34,6 +34,7 @@ const env = {
   MS_TENANT_ID: process.env.MS_TENANT_ID || '',
   MS_CLIENT_SECRET: process.env.MS_CLIENT_SECRET || '',
   DOMAIN: process.env.DOMAIN || 'localhost',
+  STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY || ''
 }
 
 export const CORS_ORIGIN = process.env.CORS_ORIGIN || 'http://localhost:3000'
