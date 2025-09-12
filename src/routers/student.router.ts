@@ -16,11 +16,13 @@ import {
   diagnosePermissions,
   testTurnInProcess,
   attachFileToSubmission,
+  listCourses,
 } from '@/services/classroom.service'
 import { UserAttributes } from '@/types/user.types'
 import { UserAccount } from '@/models/userAccount.model'
 import { getNewAccessToken } from '@/services/googleAuth.service'
 import { getTeamsTasks } from '@/services/teams.service'
+import { access } from 'fs'
 
 const studentRouter = Router()
 
@@ -1075,6 +1077,36 @@ studentRouter.post('/homework', async (req, res) => {
     res.status(201).json(newHomework)
   } catch (error) {
     console.error('Error creating homework:', error)
+    res.status(500).json({ error: 'Internal Server Error' })
+  }
+})
+
+studentRouter.get('/courses/list', async (req, res) => {
+  try {
+    const { user } = req
+    if (!user) {
+      res.status(401).json({ error: 'Unauthorized' })
+      return
+    }
+    // Get Google account
+    const googleAccount = await UserAccount.findOne({
+      where: {
+        user_id: user.id,
+        platform: 'google',
+      },
+    })
+
+    if (!googleAccount || !googleAccount.access_token) {
+      res.status(401).json({ error: 'No Google account linked' })
+      return
+    }
+
+    let accessToken = googleAccount.access_token
+
+    const courses = await listCourses(accessToken)
+    res.status(200).json(courses)
+  } catch (error) {
+    console.error('Error listing courses:', error)
     res.status(500).json({ error: 'Internal Server Error' })
   }
 })
