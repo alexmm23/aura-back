@@ -9,7 +9,8 @@ router.post('/create-checkout-session', authenticateToken, async (req, res) => {
     const userId = req.user?.id
     const { priceId } = req.body
     if (!userId || !priceId) {
-      return res.status(400).json({ error: 'Missing user or priceId' })
+      res.status(400).json({ error: 'Missing user or priceId' })
+      return
     }
     const session = await createCheckoutSession(userId, priceId)
     res.json({ url: session.url })

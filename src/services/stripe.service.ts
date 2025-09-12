@@ -3,8 +3,7 @@ import env from '@/config/enviroment'
 
 const stripe = new Stripe(env.STRIPE_SECRET_KEY, {
   apiVersion: '2024-04-10' as Stripe.LatestApiVersion,
-});
-
+})
 
 export const createCheckoutSession = async (userId: number, priceId: string) => {
   return await stripe.checkout.sessions.create({
