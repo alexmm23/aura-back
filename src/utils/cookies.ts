@@ -6,7 +6,7 @@ export const setAuthCookies = (res: Response, accessToken: string, refreshToken:
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production', // Solo HTTPS en producción
     sameSite: 'strict',
-    maxAge: 15 * 60 * 1000, // 15 minutos
+    maxAge: 60 * 60 * 1000, // 15 minutos
     path: '/'
   })
 
