@@ -18,7 +18,9 @@ router.get(`${baseUrl}`, authenticateToken, (req: Request & { user?: UserAttribu
     res.status(400).send('No se pudo obtener el ID de usuario.')
     return
   }
-  const state = req.headers['authorization']?.split(' ')[1] as string
+  console.log(req.headers)
+  const state = req.headers['authorization']?.split(' ')[1] || (req as any).accessToken
+  console.log('State recibido:', state)
   if (!state) {
     res.status(400).send('No se pudo obtener el token de autorización.')
     return

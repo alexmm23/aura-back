@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express'
 import { authenticateToken } from '@/middlewares/auth.middleware'
+import { authorizeRoute } from '@/middlewares/authorization.middleware'
 import upload from '@/middlewares/upload.middleware'
 import {
   getClassroomAssignments,
@@ -22,7 +23,10 @@ import { getNewAccessToken } from '@/services/googleAuth.service'
 import { getTeamsTasks } from '@/services/teams.service'
 
 const studentRouter = Router()
+
+// Aplicar middleware de autenticación y autorización para estudiantes
 studentRouter.use(authenticateToken)
+studentRouter.use(authorizeRoute([2], ['none', 'premium', 'active'])) // role_id 2 = student
 
 // Test endpoint to check server limits
 studentRouter.get(
