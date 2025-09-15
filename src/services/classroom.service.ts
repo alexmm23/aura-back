@@ -922,3 +922,16 @@ export const testTurnInProcess = async (
     }
   }
 }
+
+export const listCourses = async (accessToken: string) => {
+  const oauth2Client = createOAuth2Client(accessToken)
+  const classroom = google.classroom({ version: 'v1', auth: oauth2Client })
+
+  try {
+    const response = await classroom.courses.list()
+    return response.data.courses || []
+  } catch (error: any) {
+    console.error('Error listing courses:', error)
+    throw new Error('Failed to list courses')
+  }
+}

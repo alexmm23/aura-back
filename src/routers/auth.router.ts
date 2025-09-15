@@ -9,6 +9,7 @@ import env from '@/config/enviroment'
 import { generateRefreshToken, generateToken } from '@/utils/jwt'
 import { authenticateToken } from '@/middlewares/auth.middleware'
 import { setAuthCookies, clearAuthCookies } from '@/utils/cookies'
+import { checkRouteAccess } from '@/middlewares/authorization.middleware'
 
 const authRouter = Router()
 
@@ -244,6 +245,65 @@ authRouter.post('/logout/web', authenticateToken, async (req: Request & { user?:
     })
   } catch (error: any) {
     res.status(500).json({ error: error.message })
+  }
+})
+
+// VALIDAR ACCESO A RUTA (para móvil y web)
+authRouter.post('/validate-route', authenticateToken, async (req: Request & { user?: UserAttributes }, res: Response) => {
+  try {
+    const { path } = req.body
+    const { user } = req
+
+    if (!user || !path) {
+      res.status(400).json({ 
+        hasAccess: false, 
+        reason: 'Missing user or path',
+        code: 'MISSING_DATA'
+      })
+      return
+    }
+
+    // Obtener datos actualizados del usuario
+    const currentUser = await User.findOne({
+      where: { id: user.id, deleted: false },
+      attributes: ['id', 'role_id', 'subscription_status', 'subscription_type', 'name', 'email']
+    })
+
+    if (!currentUser) {
+      res.status(401).json({ 
+        hasAccess: false, 
+        reason: 'User not found',
+        code: 'USER_NOT_FOUND'
+      })
+      return
+    }
+
+    // Verificar acceso a la ruta
+    const hasAccess = checkRouteAccess(
+      path, 
+      currentUser.role_id, 
+      currentUser.subscription_status
+    )
+
+    res.status(200).json({
+      hasAccess,
+      user: {
+        id: currentUser.id,
+        name: currentUser.name,
+        email: currentUser.email,
+        role: currentUser.role_id,
+        subscription: currentUser.subscription_status || 'none'
+      },
+      path,
+      timestamp: new Date().toISOString()
+    })
+
+  } catch (error: any) {
+    res.status(500).json({ 
+      hasAccess: false, 
+      reason: error.message,
+      code: 'VALIDATION_ERROR'
+    })
   }
 })
 

@@ -5,7 +5,7 @@ import { UserAttributes } from '@/types/user.types'
 import env from '@/config/enviroment'
 
 export const authenticateToken = (
-  req: Request & { user?: UserAttributes },
+  req: Request & { user?: UserAttributes; accessToken?: string },
   res: Response,
   next: NextFunction,
 ) => {
@@ -13,7 +13,7 @@ export const authenticateToken = (
   const tokenFromCookie = req.cookies?.accessToken
   const authHeader = req.headers['authorization']
   const tokenFromHeader = authHeader && authHeader.split(' ')[1]
-  
+
   const token = tokenFromCookie || tokenFromHeader
 
   if (!token) {
@@ -32,6 +32,7 @@ export const authenticateToken = (
       return
     }
     req.user = user as UserAttributes
+    req.accessToken = req.cookies.accessToken
     next()
   })
 }
@@ -50,11 +51,11 @@ const handleTokenRefresh = async (
 
   try {
     const decoded = jwt.verify(refreshToken, env.JWT_REFRESH_SECRET) as any
-    
+
     // Verificar que el refresh token existe en la base de datos
     const { User } = await import('@/models/user.model')
     const user = await User.findOne({
-      where: { id: decoded.id, refresh_token: refreshToken }
+      where: { id: decoded.id, refresh_token: refreshToken },
     })
 
     if (!user) {
@@ -64,13 +65,13 @@ const handleTokenRefresh = async (
 
     // Generar nuevo access token
     const { generateToken } = await import('@/utils/jwt')
-    const userData = { 
-      id: user.id, 
-      email: user.email, 
-      name: user.name, 
-      lastname: user.lastname, 
-      password: user.password, 
-      role_id: user.role_id 
+    const userData = {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      lastname: user.lastname,
+      password: user.password,
+      role_id: user.role_id,
     }
     const newAccessToken = generateToken(userData)
 
@@ -80,7 +81,7 @@ const handleTokenRefresh = async (
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
       maxAge: 15 * 60 * 1000,
-      path: '/'
+      path: '/',
     })
 
     req.user = userData as UserAttributes
