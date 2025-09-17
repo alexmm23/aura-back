@@ -6,6 +6,7 @@ const router = Router()
 
 router.post('/payments/confirm', authenticateToken, async (req, res) => {
   try {
+    console.log('Received payment confirmation request:', req)
     const userId = req.user?.id
     const { paymentMethodId } = req.body
     
