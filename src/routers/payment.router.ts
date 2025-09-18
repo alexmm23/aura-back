@@ -1,22 +1,32 @@
 import { Router } from 'express'
 import { authenticateToken } from '@/middlewares/auth.middleware'
-import { createCheckoutSession } from '@/services/stripe.service'
+import { confirmPayment } from '@/services/stripe.service'
 
 const router = Router()
 
-router.post('/create-checkout-session', authenticateToken, async (req, res) => {
+router.post('/payments/confirm', authenticateToken, async (req, res) => {
   try {
+    console.log('Received payment confirmation request:', req)
     const userId = req.user?.id
-    const { priceId } = req.body
-    if (!userId || !priceId) {
-      res.status(400).json({ error: 'Missing user or priceId' })
+    const { paymentMethodId } = req.body
+    
+    if (!userId || !paymentMethodId) {
+      res.status(400).json({ error: 'Missing user or paymentMethodId' })
       return
     }
-    const session = await createCheckoutSession(userId, priceId)
-    res.json({ url: session.url })
+
+    const paymentIntent = await confirmPayment(paymentMethodId)
+
+    if (paymentIntent.status === 'succeeded') {
+      res.json({ success: true, paymentIntent })
+    } else {
+      res.json({ success: false, error: `Status: ${paymentIntent.status}` })
+    }
   } catch (error: any) {
-    res.status(500).json({ error: error.message })
+    res.status(500).json({ success: false, error: error.message })
   }
 })
 
 export { router as paymentRouter }
+
+
