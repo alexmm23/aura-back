@@ -10,7 +10,7 @@ import oauthRouter from './routers/oauth.router.js'
 import teamsRouter from './routers/teams.router.js'
 import { notebookRouter } from './routers/notebook.router.js'
 import { noteRouter } from './routers/note.router.js'
-import { paymentRouter } from './routers/payment.router'
+import { paymentRouter } from './routers/payment.router.js'
 
 // Importar modelos con asociaciones configuradas
 import './models/index.js'
