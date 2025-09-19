@@ -35,6 +35,21 @@ userRouter.post('/create', async (req, res) => {
   }
 })
 
+// Endpoint para hashear contraseñas (sin autenticación)
+userRouter.post('/hash-password', async (req, res) => {
+  try {
+    const { password } = req.body
+    if (!password) {
+      res.status(400).json({ error: 'Password is required' })
+      return 
+    }
+    const hashed = await hashPassword(password)
+    res.json({ hash: hashed })
+  } catch (error: any) {
+    res.status(500).json({ error: error.message })
+  }
+})
+
 // Ruta protegida que requiere autenticación
 userRouter.get(
   '/profile',
