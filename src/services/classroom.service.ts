@@ -515,13 +515,19 @@ export const turnInAssignmentWithFile = async (
       driveFileId,
     })
 
-    // Setup Google APIs
-    const { google } = require('googleapis')
-    const auth = new google.auth.OAuth2()
-    auth.setCredentials({ access_token: accessToken })
+    // Setup Google APIs - Usar createOAuth2Client para consistencia
+    const oauth2Client = createOAuth2Client(accessToken)
+    
+    // Verificar que el token tenga los scopes necesarios
+    try {
+      const tokenInfo = await oauth2Client.getTokenInfo(accessToken)
+      console.log('Token scopes:', tokenInfo.scopes)
+    } catch (error) {
+      console.warn('Could not verify token scopes:', error)
+    }
 
-    const classroom = google.classroom({ version: 'v1', auth })
-    const drive = google.drive({ version: 'v3', auth })
+    const classroom = google.classroom({ version: 'v1', auth: oauth2Client })
+    const drive = google.drive({ version: 'v3', auth: oauth2Client })
 
     // 1. Verify file exists and get info
     let fileInfo
@@ -587,7 +593,7 @@ export const turnInAssignmentWithFile = async (
       return {
         success: true,
         message: 'Assignment submitted with file attached',
-        submissionState: turnInResult.data.state,
+        submissionId,
         driveFileId,
         fileName: fileInfo.name,
         fileLink: fileInfo.webViewLink,
@@ -919,6 +925,72 @@ export const testTurnInProcess = async (
       success: false,
       error: error.message,
       code: error.code,
+    }
+  }
+}
+
+export const validateStudentPermissions = async (
+  accessToken: string,
+  courseId: string,
+  courseWorkId: string,
+) => {
+  const oauth2Client = createOAuth2Client(accessToken)
+  const classroom = google.classroom({ version: 'v1', auth: oauth2Client })
+
+  try {
+    console.log('🔍 Validating student permissions...')
+
+    // 1. Verificar que el usuario está inscrito en el curso
+    const course = await classroom.courses.get({ id: courseId })
+    console.log('✅ Course accessible:', course.data.name)
+
+    // 2. Verificar acceso al courseWork
+    const courseWork = await classroom.courses.courseWork.get({
+      courseId,
+      id: courseWorkId,
+    })
+    console.log('✅ CourseWork accessible:', courseWork.data.title)
+
+    // 3. Verificar que el estudiante tiene una submission
+    const submissions = await classroom.courses.courseWork.studentSubmissions.list({
+      courseId,
+      courseWorkId,
+      userId: 'me', // ✅ Esto asegura que usamos la identidad del estudiante
+    })
+
+    const userSubmissions = submissions.data.studentSubmissions || []
+    const pendingSubmission = userSubmissions.find(
+      (s) => s.state === 'CREATED' || s.state === 'NEW'
+    )
+
+    if (!pendingSubmission) {
+      throw new Error('No pending submission found for this student')
+    }
+
+    console.log('✅ Valid submission found:', {
+      id: pendingSubmission.id,
+      state: pendingSubmission.state,
+    })
+
+    return {
+      success: true,
+      courseId,
+      courseWorkId,
+      submissionId: pendingSubmission.id,
+      courseName: course.data.name,
+      assignmentTitle: courseWork.data.title,
+      submissionState: pendingSubmission.state,
+    }
+  } catch (error: any) {
+    console.error('❌ Permission validation failed:', error.message)
+    
+    // Proporcionar información específica sobre el tipo de error
+    if (error.code === 403) {
+      throw new Error('Insufficient permissions. The user may not be enrolled in this course or lacks necessary scopes.')
+    } else if (error.code === 404) {
+      throw new Error('Course or assignment not found. Verify the IDs are correct.')
+    } else {
+      throw new Error(`Permission validation failed: ${error.message}`)
     }
   }
 }
