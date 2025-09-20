@@ -124,14 +124,24 @@ router.get('/list/:notebookId', authenticateToken, async (req, res) => {
 
 router.post('/images/upload', authenticateToken, upload.single('image'), async (req, res) => {
   try {
-    const file = req.file
+    const fileBase64: string = req.body.image
 
-    if (!file) {
+    console.log(req)
+
+    if (!fileBase64) {
       res.status(400).json({
         success: false,
         error: 'Missing image file',
       })
       return
+    }
+
+    //Convertir base64 a buffer
+    const fileBuffer = Buffer.from(fileBase64.replace(/^data:image\/\w+;base64,/, ''), 'base64')
+    const file = {
+      originalname: 'uploaded_image.png', // Nombre de archivo por defecto
+      buffer: fileBuffer,
+      mimetype: 'image/png', // Asumir PNG, ajustar según sea necesario
     }
 
     // Obtener datos del body

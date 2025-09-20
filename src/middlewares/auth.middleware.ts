@@ -20,7 +20,6 @@ export const authenticateToken = (
     res.status(401).json({ error: 'Access token required' })
     return
   }
-  console.log('Verifying token:', req.cookies)
 
   jwt.verify(token, env.JWT_SECRET, (err: any, user: any) => {
     if (err) {
