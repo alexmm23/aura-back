@@ -5,10 +5,8 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 import { authenticateToken } from '@/middlewares/auth.middleware'
 import { saveCompressedPngImage } from '@/services/sendnote.service'
-import { getNotesByNotebookId, getNotesByUserId } from '@/services/note.service'
+import { getNotesByNotebookId, getNotesByUserId, getNoteById } from '@/services/note.service'
 import Page from '@/models/pages.model'
-import Content from '@/models/content.model'
-import { Notebook } from '@/models'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -122,12 +120,44 @@ router.get('/list/:notebookId', authenticateToken, async (req, res) => {
   }
 })
 
+router.get('/show/:id', authenticateToken, async (req, res) => {
+  try {
+    const noteId = Number(req.params.id)
+
+    if (!noteId) {
+      res.status(400).json({
+        success: false,
+        error: 'Invalid note ID',
+      })
+      return
+    }
+
+    const note = await getNoteById(noteId)
+
+    if (!note) {
+      res.status(404).json({
+        success: false,
+        error: 'Note not found',
+      })
+      return
+    }
+
+    res.status(200).json({
+      success: true,
+      data: note,
+    })
+  } catch (error: any) {
+    console.error('Error fetching note:', error)
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    })
+  }
+})
+
 router.post('/images/upload', authenticateToken, upload.single('image'), async (req, res) => {
   try {
     const fileBase64: string = req.body.image
-
-    console.log(req)
-
     if (!fileBase64) {
       res.status(400).json({
         success: false,

@@ -67,6 +67,62 @@ export async function getNotesByUserId(userId: number) {
     throw error
   }
 }
+
+export async function getNoteById(noteId: number) {
+  try {
+    const note = await Content.findByPk(noteId)
+
+    if (!note) {
+      throw new Error('Note not found')
+    }
+
+    // Convert image to base64 if it's an image content
+    if (note.type === 'image' && note.data) {
+      try {
+        // If data is already base64, return as is
+        if (note.data.startsWith('data:image/')) {
+          return note
+        }
+        // If data is a URL/path, read file and convert to base64
+        const imagePath = path.join(
+          process.cwd(),
+          note.data.startsWith('/') ? note.data.slice(1) : note.data,
+        )
+
+        if (!fs.existsSync(imagePath)) {
+          console.error('Image file not found:', imagePath)
+          return note
+        }
+
+        const imageBuffer = fs.readFileSync(imagePath)
+        const base64 = imageBuffer.toString('base64')
+
+        // Determine the mime type based on file extension
+        const ext = path.extname(imagePath).toLowerCase()
+        const mimeType =
+          ext === '.png'
+            ? 'image/png'
+            : ext === '.jpg' || ext === '.jpeg'
+              ? 'image/jpeg'
+              : 'image/png'
+
+        return {
+          ...note.toJSON(),
+          data: `data:${mimeType};base64,${base64}`,
+        }
+      } catch (error) {
+        console.error('Error converting image to base64:', error)
+        return note
+      }
+    }
+
+    return note
+  } catch (error) {
+    console.error('Error fetching note:', error)
+    throw error
+  }
+}
+
 export async function getNotesByNotebookId(notebookId: number) {
   try {
     const notebook = await Notebook.findByPk(notebookId, {
