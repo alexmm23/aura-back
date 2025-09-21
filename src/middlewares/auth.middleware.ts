@@ -15,7 +15,6 @@ export const authenticateToken = (
   const tokenFromHeader = authHeader && authHeader.split(' ')[1]
 
   const token = tokenFromCookie || tokenFromHeader
-
   if (!token) {
     res.status(401).json({ error: 'Access token required' })
     return

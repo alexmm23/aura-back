@@ -4,6 +4,7 @@ import PageModel from './pages.model.js'
 import NotebookModel from './notebook.model.js'
 import { User as UserModel } from './user.model.js'
 import { UserAccount as UserAccountModel } from './userAccount.model.js'
+import { UserSession as UserSessionModel } from './userSession.model.js'
 
 // Luego importar las asociaciones (esto configurará las relaciones)
 import './associations.js'
@@ -14,6 +15,7 @@ export const Page = PageModel
 export const Notebook = NotebookModel
 export const User = UserModel
 export const UserAccount = UserAccountModel
+export const UserSession = UserSessionModel
 
 // Export default para compatibilidad
 export default {
@@ -22,4 +24,5 @@ export default {
   Notebook,
   User,
   UserAccount,
+  UserSession,
 }

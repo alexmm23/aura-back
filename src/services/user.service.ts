@@ -1,10 +1,15 @@
 import { User } from '../models/user.model.js'
+import { UserSession } from '../models/userSession.model.js'
 import { UserAttributes, UserCreationAttributes, UserLoginAttributes } from '../types/user.types.js'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import { sendEmail } from './email.service.js'
 import env from '@/config/enviroment'
 import { generateRefreshToken, generateToken } from '@/utils/jwt'
+import { createRequire } from 'module'
+
+const require = createRequire(import.meta.url)
+const { Op } = require('sequelize')
 export const getAllUsers = async (): Promise<UserAttributes[]> => {
   try {
     const users: Array<UserAttributes> = (
@@ -66,6 +71,8 @@ const comparePassword = async (password: string, hashedPassword: string): Promis
 
 export const loginUser = async (
   loginData: UserLoginAttributes,
+  deviceType: 'mobile' | 'web' | 'desktop' = 'web',
+  deviceInfo?: string,
 ): Promise<{ token: string; refreshToken: string }> => {
   try {
     const user = await User.findOne({
@@ -87,8 +94,19 @@ export const loginUser = async (
 
     const token = generateToken(user.toJSON() as UserAttributes)
     const refreshToken = generateRefreshToken(user.toJSON() as UserAttributes)
-    user.refresh_token = refreshToken // Guardar el refresh token en el objeto user
-    await user.save() // Guardar el objeto user con el refresh token en la base de datos
+
+    // Crear nueva sesión en lugar de sobrescribir
+    await UserSession.create({
+      user_id: user.getDataValue('id'),
+      refresh_token: refreshToken,
+      device_type: deviceType,
+      device_info: deviceInfo,
+      expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 días
+      is_active: true,
+    })
+
+    // Limpiar sesiones expiradas
+    await cleanExpiredSessions(user.getDataValue('id'))
 
     return { token, refreshToken }
   } catch (error: any) {
@@ -131,4 +149,116 @@ const generateRandomPassword = (): string => {
     password += charset[randomIndex]
   }
   return password
+}
+
+// Función para limpiar sesiones expiradas
+export const cleanExpiredSessions = async (userId: number) => {
+  await UserSession.update(
+    { is_active: false },
+    {
+      where: {
+        user_id: userId,
+        expires_at: { [Op.lt]: new Date() },
+      },
+    },
+  )
+}
+
+// Validar refresh token desde sesiones
+export const validateRefreshToken = async (refreshToken: string) => {
+  try {
+    const session = await UserSession.findOne({
+      where: {
+        refresh_token: refreshToken,
+        is_active: true,
+        expires_at: { [Op.gt]: new Date() },
+      },
+    })
+
+    if (!session) {
+      return null
+    }
+
+    // Obtener el usuario asociado a la sesión
+    const user = await User.findOne({
+      where: {
+        id: session.getDataValue('user_id'),
+        deleted: false,
+      },
+    })
+
+    if (!user) {
+      return null
+    }
+
+    return {
+      session,
+      user,
+    }
+  } catch (error) {
+    console.error('Error validating refresh token:', error)
+    return null
+  }
+}
+
+// Invalidar sesión específica
+export const invalidateSession = async (refreshToken: string, userId: number) => {
+  try {
+    await UserSession.update(
+      { is_active: false },
+      {
+        where: {
+          refresh_token: refreshToken,
+          user_id: userId,
+        },
+      },
+    )
+    return true
+  } catch (error) {
+    console.error('Error invalidating session:', error)
+    return false
+  }
+}
+
+// Invalidar todas las sesiones de un usuario
+export const invalidateAllUserSessions = async (userId: number) => {
+  try {
+    await UserSession.update(
+      { is_active: false },
+      {
+        where: {
+          user_id: userId,
+        },
+      },
+    )
+    return true
+  } catch (error) {
+    console.error('Error invalidating all user sessions:', error)
+    return false
+  }
+}
+
+// Actualizar refresh token de una sesión
+export const updateSessionRefreshToken = async (
+  oldRefreshToken: string,
+  newRefreshToken: string,
+) => {
+  try {
+    const result = await UserSession.update(
+      {
+        refresh_token: newRefreshToken,
+        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 días
+      },
+      {
+        where: {
+          refresh_token: oldRefreshToken,
+          is_active: true,
+        },
+      },
+    )
+    return result[0] > 0 // Devuelve true si se actualizó al menos una fila
+  } catch (error) {
+    console.error('Error updating session refresh token:', error)
+    return false
+  }
 }

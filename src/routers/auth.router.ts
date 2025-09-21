@@ -1,7 +1,14 @@
 // src/routes/auth.router.ts
 import { Router, Request, Response } from 'express'
 import jwt from 'jsonwebtoken'
-import { loginUser, resetPassword } from '@/services/user.service'
+import {
+  loginUser,
+  resetPassword,
+  validateRefreshToken,
+  invalidateSession,
+  invalidateAllUserSessions,
+  updateSessionRefreshToken,
+} from '@/services/user.service'
 import { UserLoginAttributes, UserAttributes } from '@/types/user.types'
 import { User } from '@/models/user.model'
 import { UserAccount } from '@/models/userAccount.model'
@@ -22,7 +29,9 @@ authRouter.post('/login', async (req: Request, res: Response) => {
       return
     }
 
-    const { token, refreshToken } = await loginUser(loginData)
+    const userAgent = req.headers['user-agent'] || 'Unknown'
+    const { token, refreshToken } = await loginUser(loginData, 'mobile', userAgent)
+
     res.status(200).json({ message: 'Login successful', token, refreshToken })
   } catch (error: any) {
     res.status(401).json({ error: error.message })
@@ -33,13 +42,19 @@ authRouter.post('/login', async (req: Request, res: Response) => {
 authRouter.post('/login/web', async (req: Request, res: Response) => {
   try {
     const { email, password }: UserLoginAttributes = req.body
+    console.log('Login web request:', req.body)
 
     if (!email || !password) {
       res.status(400).json({ error: 'Email and password are required' })
       return
     }
 
-    const { token: accessToken, refreshToken } = await loginUser({ email, password })
+    const userAgent = req.headers['user-agent'] || 'Unknown'
+    const { token: accessToken, refreshToken } = await loginUser(
+      { email, password },
+      'web',
+      userAgent,
+    )
 
     // Obtener información del usuario
     const user = await User.findOne({
@@ -62,7 +77,8 @@ authRouter.post('/login/web', async (req: Request, res: Response) => {
     })
 
     const activePlatforms = userAccounts.map((account: any) => account.platform)
-
+    //Imprimir cookies debug
+    console.log('Set cookies:', res.getHeader('Set-Cookie'))
     res.status(200).json({
       message: 'Login successful',
       user: {
@@ -79,43 +95,49 @@ authRouter.post('/login/web', async (req: Request, res: Response) => {
 })
 
 // VERIFICAR AUTENTICACIÓN (funciona tanto con cookies como con headers)
-authRouter.get('/check', authenticateToken, async (req: Request & { user?: UserAttributes }, res) => {
-  try {
-    const { user } = req
+authRouter.get(
+  '/check',
+  authenticateToken,
+  async (req: Request & { user?: UserAttributes }, res) => {
+    try {
+      // console.log('Check auth request:', req.headers, req.cookies)
+      const { user } = req
+      // console.log('user check', req.user, req.headers, req.cookies)
 
-    if (!user) {
-      res.status(401).json({ authenticated: false })
-      return
+      if (!user) {
+        res.status(401).json({ authenticated: false })
+        return
+      }
+
+      const userProfile = await User.findOne({
+        where: { id: user.id },
+        attributes: { exclude: ['password', 'refresh_token'] },
+      })
+
+      if (!userProfile) {
+        res.status(404).json({ authenticated: false })
+        return
+      }
+
+      const userAccounts = await UserAccount.findAll({
+        where: { user_id: user.id },
+        attributes: ['platform'],
+      })
+
+      const activePlatforms = userAccounts.map((account: any) => account.platform)
+
+      res.status(200).json({
+        authenticated: true,
+        user: {
+          ...userProfile.toJSON(),
+          activePlatforms,
+        },
+      })
+    } catch (error: any) {
+      res.status(500).json({ authenticated: false, error: error.message })
     }
-
-    const userProfile = await User.findOne({
-      where: { id: user.id },
-      attributes: { exclude: ['password', 'refresh_token'] },
-    })
-
-    if (!userProfile) {
-      res.status(404).json({ authenticated: false })
-      return
-    }
-
-    const userAccounts = await UserAccount.findAll({
-      where: { user_id: user.id },
-      attributes: ['platform'],
-    })
-
-    const activePlatforms = userAccounts.map((account: any) => account.platform)
-
-    res.status(200).json({
-      authenticated: true,
-      user: {
-        ...userProfile.toJSON(),
-        activePlatforms,
-      },
-    })
-  } catch (error: any) {
-    res.status(500).json({ authenticated: false, error: error.message })
-  }
-})
+  },
+)
 
 // REFRESH TOKEN (para móvil)
 authRouter.post('/token/refresh', async (req: Request, res: Response) => {
@@ -125,24 +147,23 @@ authRouter.post('/token/refresh', async (req: Request, res: Response) => {
       res.status(401).json({ error: 'Refresh token requerido' })
       return
     }
-    const decoded = jwt.verify(refreshToken, env.JWT_REFRESH_SECRET) as jwt.JwtPayload
-    const user = await User.findOne({ where: { id: decoded.id, deleted: false } })
 
-    if (!user) {
-      res.status(404).json({ error: 'User not found' })
+    const sessionData = await validateRefreshToken(refreshToken)
+    if (!sessionData) {
+      res.status(401).json({ error: 'Invalid or expired refresh token' })
       return
     }
 
-    if (user.refresh_token != refreshToken) {
-      res.status(401).json({ error: 'Invalid refresh token' })
-      return
-    }
-
+    const { user } = sessionData
     const newRefreshToken = generateRefreshToken(user.toJSON() as UserAttributes)
     const accessToken = generateToken(user.toJSON() as UserAttributes)
 
-    user.refresh_token = newRefreshToken
-    await user.save()
+    // Actualizar la sesión actual
+    const updateSuccess = await updateSessionRefreshToken(refreshToken, newRefreshToken)
+    if (!updateSuccess) {
+      res.status(500).json({ error: 'Failed to update session' })
+      return
+    }
 
     res.json({ accessToken, refreshToken: newRefreshToken })
   } catch (error: any) {
@@ -195,21 +216,17 @@ authRouter.post('/reset-password', async (req: Request, res: Response) => {
 authRouter.post('/logout', authenticateToken, async (req: Request, res: Response) => {
   try {
     const user = (req as any).user
+    const refreshToken = req.body.refreshToken
 
     if (!user) {
       res.status(401).json({ error: 'Unauthorized' })
       return
     }
 
-    // Invalida el refresh token en la base de datos
-    await User.update(
-      { refresh_token: null },
-      {
-        where: {
-          id: user.id,
-        },
-      },
-    )
+    if (refreshToken) {
+      // Invalidar solo esta sesión específica
+      await invalidateSession(refreshToken, user.id!)
+    }
 
     res.status(200).json({
       success: true,
@@ -222,89 +239,121 @@ authRouter.post('/logout', authenticateToken, async (req: Request, res: Response
 })
 
 // LOGOUT PARA WEB (limpia cookies)
-authRouter.post('/logout/web', authenticateToken, async (req: Request & { user?: UserAttributes }, res) => {
-  try {
-    const { user } = req
+authRouter.post(
+  '/logout/web',
+  authenticateToken,
+  async (req: Request & { user?: UserAttributes }, res) => {
+    try {
+      const { user } = req
+      const refreshToken = req.cookies.refreshToken
 
-    if (!user) {
-      res.status(401).json({ error: 'Unauthorized' })
-      return
+      if (!user) {
+        res.status(401).json({ error: 'Unauthorized' })
+        return
+      }
+
+      if (refreshToken) {
+        // Invalidar solo esta sesión específica
+        await invalidateSession(refreshToken, user.id!)
+      }
+
+      // Limpiar cookies
+      clearAuthCookies(res)
+
+      res.status(200).json({
+        message: 'Logout successful',
+      })
+    } catch (error: any) {
+      res.status(500).json({ error: error.message })
     }
+  },
+)
 
-    // Limpiar refresh token de la base de datos
-    await User.update(
-      { refresh_token: null },
-      { where: { id: user.id } }
-    )
+// LOGOUT DE TODAS LAS SESIONES
+authRouter.post(
+  '/logout/all',
+  authenticateToken,
+  async (req: Request & { user?: UserAttributes }, res: Response) => {
+    try {
+      const { user } = req
 
-    // Limpiar cookies
-    clearAuthCookies(res)
+      if (!user) {
+        res.status(401).json({ error: 'Unauthorized' })
+        return
+      }
 
-    res.status(200).json({
-      message: 'Logout successful'
-    })
-  } catch (error: any) {
-    res.status(500).json({ error: error.message })
-  }
-})
+      // Invalidar todas las sesiones del usuario
+      await invalidateAllUserSessions(user.id!)
+
+      // Limpiar cookies si es una sesión web
+      clearAuthCookies(res)
+
+      res.status(200).json({
+        success: true,
+        message: 'Logged out from all devices successfully',
+      })
+    } catch (error: any) {
+      res.status(500).json({ error: error.message })
+    }
+  },
+)
 
 // VALIDAR ACCESO A RUTA (para móvil y web)
-authRouter.post('/validate-route', authenticateToken, async (req: Request & { user?: UserAttributes }, res: Response) => {
-  try {
-    const { path } = req.body
-    const { user } = req
+authRouter.post(
+  '/validate-route',
+  authenticateToken,
+  async (req: Request & { user?: UserAttributes }, res: Response) => {
+    try {
+      const { path } = req.body
+      const { user } = req
 
-    if (!user || !path) {
-      res.status(400).json({ 
-        hasAccess: false, 
-        reason: 'Missing user or path',
-        code: 'MISSING_DATA'
+      if (!user || !path) {
+        res.status(400).json({
+          hasAccess: false,
+          reason: 'Missing user or path',
+          code: 'MISSING_DATA',
+        })
+        return
+      }
+
+      // Obtener datos actualizados del usuario
+      const currentUser = await User.findOne({
+        where: { id: user.id, deleted: false },
+        attributes: ['id', 'role_id', 'subscription_status', 'subscription_type', 'name', 'email'],
       })
-      return
-    }
 
-    // Obtener datos actualizados del usuario
-    const currentUser = await User.findOne({
-      where: { id: user.id, deleted: false },
-      attributes: ['id', 'role_id', 'subscription_status', 'subscription_type', 'name', 'email']
-    })
+      if (!currentUser) {
+        res.status(401).json({
+          hasAccess: false,
+          reason: 'User not found',
+          code: 'USER_NOT_FOUND',
+        })
+        return
+      }
 
-    if (!currentUser) {
-      res.status(401).json({ 
-        hasAccess: false, 
-        reason: 'User not found',
-        code: 'USER_NOT_FOUND'
+      // Verificar acceso a la ruta
+      const hasAccess = checkRouteAccess(path, currentUser.role_id, currentUser.subscription_status)
+
+      res.status(200).json({
+        hasAccess,
+        user: {
+          id: currentUser.id,
+          name: currentUser.name,
+          email: currentUser.email,
+          role: currentUser.role_id,
+          subscription: currentUser.subscription_status || 'none',
+        },
+        path,
+        timestamp: new Date().toISOString(),
       })
-      return
+    } catch (error: any) {
+      res.status(500).json({
+        hasAccess: false,
+        reason: error.message,
+        code: 'VALIDATION_ERROR',
+      })
     }
-
-    // Verificar acceso a la ruta
-    const hasAccess = checkRouteAccess(
-      path, 
-      currentUser.role_id, 
-      currentUser.subscription_status
-    )
-
-    res.status(200).json({
-      hasAccess,
-      user: {
-        id: currentUser.id,
-        name: currentUser.name,
-        email: currentUser.email,
-        role: currentUser.role_id,
-        subscription: currentUser.subscription_status || 'none'
-      },
-      path,
-      timestamp: new Date().toISOString()
-    })
-
-  } catch (error: any) {
-    res.status(500).json({ 
-      hasAccess: false, 
-      reason: error.message,
-      code: 'VALIDATION_ERROR'
-    })
-  }
-})
+  },
+)
 
 export { authRouter }
