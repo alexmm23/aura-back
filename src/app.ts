@@ -12,6 +12,7 @@ import { notebookRouter } from './routers/notebook.router.js'
 import { noteRouter } from './routers/note.router.js'
 import { paymentRouter } from './routers/payment.router.js'
 import { forumRouter } from './routers/forum.router.js'
+import { reminderRouter } from './routers/reminder.router.js'
 
 // Importar modelos con asociaciones configuradas
 import './models/index.js'
@@ -44,6 +45,7 @@ const routes = [
   { path: `${API_BASE_PATH}/note`, router: noteRouter },
   { path: `${API_BASE_PATH}/payment`, router: paymentRouter },
   { path: `${API_BASE_PATH}/forums`, router: forumRouter },
+  { path: `${API_BASE_PATH}/reminders`, router: reminderRouter },
 ]
 
 routes.forEach(({ path, router }) => {

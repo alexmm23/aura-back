@@ -7,6 +7,7 @@ import { Forum } from './forum.model.js'
 import { ForumPost } from './forumPost.model.js'
 import { ForumComment } from './forumComment.model.js'
 import { ForumAttachment } from './forumAttachment.model.js'
+import { Reminder } from './reminder.model.js'
 
 // Definir todas las asociaciones aquí para evitar dependencias circulares
 
@@ -90,14 +91,23 @@ ForumAttachment.belongsTo(User, { foreignKey: 'user_id', as: 'user' })
 // User tiene muchos ForumAttachments
 User.hasMany(ForumAttachment, { foreignKey: 'user_id', as: 'forum_attachments' })
 
-export {
-  Content,
-  Page,
-  Notebook,
-  User,
+// ==================== REMINDER ASSOCIATIONS ====================
+
+// Reminder pertenece a User
+Reminder.belongsTo(User, { foreignKey: 'user_id', as: 'user' })
+
+// User tiene muchos Reminders
+User.hasMany(Reminder, { foreignKey: 'user_id', as: 'reminders' })
+
+export { 
+  Content, 
+  Page, 
+  Notebook, 
+  User, 
   UserSession,
   Forum,
   ForumPost,
   ForumComment,
   ForumAttachment,
+  Reminder
 }
