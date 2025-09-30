@@ -1,7 +1,7 @@
 // src/routes/auth.router.ts
 import { Router, Request, Response } from 'express'
 import jwt from 'jsonwebtoken'
-import { Op } from 'sequelize' 
+import { Op } from 'sequelize'
 import {
   loginUser,
   resetPassword,
@@ -21,7 +21,6 @@ import { checkRouteAccess } from '@/middlewares/authorization.middleware'
 
 import { initiatePasswordReset, resetPasswordWithToken } from '@/services/passwordReset.service'
 
-
 const authRouter = Router()
 
 // LOGIN PARA MÓVIL (con tokens en response)
@@ -35,8 +34,12 @@ authRouter.post('/login', async (req: Request, res: Response) => {
 
     const userAgent = req.headers['user-agent'] || 'Unknown'
     const { token, refreshToken } = await loginUser(loginData, 'mobile', userAgent)
+    const user = await User.findOne({
+      where: { email: loginData.email },
+      attributes: { id: true },
+    })
 
-    res.status(200).json({ message: 'Login successful', token, refreshToken })
+    res.status(200).json({ message: 'Login successful', token, refreshToken, userId: user?.id })
   } catch (error: any) {
     res.status(401).json({ error: error.message })
   }
@@ -81,8 +84,7 @@ authRouter.post('/login/web', async (req: Request, res: Response) => {
     })
 
     const activePlatforms = userAccounts.map((account: any) => account.platform)
-    //Imprimir cookies debug
-    console.log('Set cookies:', res.getHeader('Set-Cookie'))
+
     res.status(200).json({
       message: 'Login successful',
       user: {
@@ -91,6 +93,7 @@ authRouter.post('/login/web', async (req: Request, res: Response) => {
         name: user.name,
         lastname: user.lastname,
         activePlatforms,
+        role_id: user.role_id,
       },
     })
   } catch (error: any) {
@@ -200,7 +203,7 @@ authRouter.post('/token/verify', async (req: Request, res: Response) => {
   }
 })
 
-// Endpoint para solicitar reset 
+// Endpoint para solicitar reset
 authRouter.post('/reset-password', async (req: Request, res: Response) => {
   try {
     const { email } = req.body
@@ -218,82 +221,86 @@ authRouter.post('/reset-password', async (req: Request, res: Response) => {
     }
 
     const result = await initiatePasswordReset(email)
-    
+
     // Respuesta genérica por seguridad
-    res.status(200).json({ 
+    res.status(200).json({
       message: 'If this email exists, a reset link has been sent',
-      success: true
+      success: true,
     })
   } catch (error: any) {
     console.error('Reset password error:', error)
     // Respuesta genérica incluso en error para no revelar información
-    res.status(200).json({ 
+    res.status(200).json({
       message: 'If this email exists, a reset link has been sent',
-      success: true
+      success: true,
     })
   }
 })
 
 // Nuevo endpoint para verificar token
 authRouter.get('/verify-reset-token/:token', async (req: Request, res: Response) => {
-    
   try {
     const { token } = req.params
 
     if (!token) {
-      res.status(400).json({ 
+      res.status(400).json({
         ok: false,
-        data: { error: 'Token is required' }
+        data: { error: 'Token is required' },
       })
       return
     }
 
     const user = await User.findOne({
-      where: { 
+      where: {
         reset_password_token: token,
-        deleted: false 
+        deleted: false,
       },
-      attributes: ['id', 'name', 'email', 'reset_password_expires', 'reset_password_token']
+      attributes: ['id', 'name', 'email', 'reset_password_expires', 'reset_password_token'],
     })
 
-    console.log('Resultado de búsqueda:', user ? {
-      found: true,
-      id: user.id,
-      storedToken: user.reset_password_token,
-      tokensMatch: user.reset_password_token === token
-    } : { found: false });
+    console.log(
+      'Resultado de búsqueda:',
+      user
+        ? {
+            found: true,
+            id: user.id,
+            storedToken: user.reset_password_token,
+            tokensMatch: user.reset_password_token === token,
+          }
+        : { found: false },
+    )
 
     if (!user) {
-      res.status(400).json({ 
+      res.status(400).json({
         ok: false,
-        data: { error: 'Invalid token' }
+        data: { error: 'Invalid token' },
       })
       return
     }
 
     if (!user.reset_password_expires || new Date() > user.reset_password_expires) {
-      console.log('Token expirado');
-      res.status(400).json({ 
+      console.log('Token expirado')
+      res.status(400).json({
         ok: false,
-        data: { error: 'Token has expired' }
+        data: { error: 'Token has expired' },
       })
       return
     }
 
-    console.log('Token válido, enviando respuesta exitosa');
-    res.status(200).json({ 
+    console.log('Token válido, enviando respuesta exitosa')
+    res.status(200).json({
       ok: true,
       data: {
         user: {
           name: user.name,
-          email: user.email
-        }
-      }
+          email: user.email,
+        },
+      },
     })
   } catch (error: any) {
-    res.status(500).json({ 
+    res.status(500).json({
       ok: false,
-      data: { error: 'Error verifying token' }
+      data: { error: 'Error verifying token' },
     })
   }
 })
@@ -315,8 +322,8 @@ authRouter.post('/confirm-reset-password', async (req: Request, res: Response) =
 
     // Validar contraseña (ajusta según tus reglas)
     if (password.length < 8) {
-      res.status(400).json({ 
-        error: 'Password must be at least 8 characters long' 
+      res.status(400).json({
+        error: 'Password must be at least 8 characters long',
       })
       return
     }
@@ -324,18 +331,19 @@ authRouter.post('/confirm-reset-password', async (req: Request, res: Response) =
     // Validar complejidad de contraseña (opcional)
     const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/
     if (!passwordRegex.test(password)) {
-      res.status(400).json({ 
-        error: 'Password must contain at least one lowercase letter, one uppercase letter, and one number' 
+      res.status(400).json({
+        error:
+          'Password must contain at least one lowercase letter, one uppercase letter, and one number',
       })
       return
     }
 
     const result = await resetPasswordWithToken(token, password)
-    
+
     res.status(200).json({
       message: 'Password reset successfully',
       success: true,
-      user: result.user
+      user: result.user,
     })
   } catch (error: any) {
     console.error('Confirm reset password error:', error)
@@ -346,19 +354,22 @@ authRouter.post('/confirm-reset-password', async (req: Request, res: Response) =
 authRouter.post('/cleanup-expired-tokens', async (req: Request, res: Response) => {
   try {
     // Limpiar tokens expirados (puedes ejecutar esto como un cron job)
-    const result = await User.update({
-      reset_password_token: null,
-      reset_password_expires: null
-    }, {
-      where: {
-        reset_password_expires: {
-          [Op.lt]: new Date() // menor que la fecha actual
-        }
-      }
-    })
+    const result = await User.update(
+      {
+        reset_password_token: null,
+        reset_password_expires: null,
+      },
+      {
+        where: {
+          reset_password_expires: {
+            [Op.lt]: new Date(), // menor que la fecha actual
+          },
+        },
+      },
+    )
 
-    res.status(200).json({ 
-      message: `Cleaned up ${result[0]} expired tokens` 
+    res.status(200).json({
+      message: `Cleaned up ${result[0]} expired tokens`,
     })
   } catch (error: any) {
     console.error('Cleanup error:', error)
