@@ -2,6 +2,11 @@ import { google } from 'googleapis'
 import { createOAuth2Client } from './googleAuth.service.js'
 import { Readable } from 'stream'
 
+export const getGoogleClassroomService = (accessToken: string) => {
+  const oauth2Client = createOAuth2Client(accessToken)
+  return google.classroom({ version: 'v1', auth: oauth2Client })
+}
+
 export const testClassroomConnection = async (accessToken: string) => {
   try {
     console.log('Testing Classroom API connection...')
@@ -517,7 +522,7 @@ export const turnInAssignmentWithFile = async (
 
     // Setup Google APIs - Usar createOAuth2Client para consistencia
     const oauth2Client = createOAuth2Client(accessToken)
-    
+
     // Verificar que el token tenga los scopes necesarios
     try {
       const tokenInfo = await oauth2Client.getTokenInfo(accessToken)
@@ -960,7 +965,7 @@ export const validateStudentPermissions = async (
 
     const userSubmissions = submissions.data.studentSubmissions || []
     const pendingSubmission = userSubmissions.find(
-      (s) => s.state === 'CREATED' || s.state === 'NEW'
+      (s) => s.state === 'CREATED' || s.state === 'NEW',
     )
 
     if (!pendingSubmission) {
@@ -983,10 +988,12 @@ export const validateStudentPermissions = async (
     }
   } catch (error: any) {
     console.error('❌ Permission validation failed:', error.message)
-    
+
     // Proporcionar información específica sobre el tipo de error
     if (error.code === 403) {
-      throw new Error('Insufficient permissions. The user may not be enrolled in this course or lacks necessary scopes.')
+      throw new Error(
+        'Insufficient permissions. The user may not be enrolled in this course or lacks necessary scopes.',
+      )
     } else if (error.code === 404) {
       throw new Error('Course or assignment not found. Verify the IDs are correct.')
     } else {
