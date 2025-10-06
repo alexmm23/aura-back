@@ -56,6 +56,7 @@ const env = {
   MS_CLIENT_ID: process.env.MS_CLIENT_ID || '',
   MS_TENANT_ID: process.env.MS_TENANT_ID || '',
   MS_CLIENT_SECRET: process.env.MS_CLIENT_SECRET || '',
+  RESEND_API_KEY: process.env.RESEND_API_KEY || '',
   DOMAIN: process.env.DOMAIN || 'localhost',
   STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY || ''
 }

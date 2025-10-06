@@ -12,9 +12,34 @@ import {
   PaginationOptions
 } from '../types/reminder.types.js'
 import { createRequire } from 'module'
+import nodemailer from 'nodemailer'
+import env from '@/config/enviroment'
 
 const require = createRequire(import.meta.url)
 const { Op } = require('sequelize')
+
+// Configurar el transportador de email
+const emailTransporter = nodemailer.createTransport({
+  host: 'smtp.resend.com',
+  port: 587,
+  secure: false, // true para 465, false para otros puertos
+  auth: {
+    user: 'resend',
+    pass: process.env.RESEND_API_KEY, // Usar directamente process.env
+  },
+})
+
+// Agregar esta función para testing
+const testEmailConnection = async () => {
+  try {
+    await emailTransporter.verify()
+    console.log('✅ Email server connection successful')
+    return true
+  } catch (error) {
+    console.error('❌ Email server connection failed:', error)
+    return false
+  }
+}
 
 // ==================== REMINDER SERVICES ====================
 
@@ -244,7 +269,7 @@ export const getPendingReminders = async (filters: ReminderFilters = {}): Promis
     const whereConditions: any = {
       status: 'pending',
       deleted: false,
-      date_time: { [Op.lte]: new Date() } // Solo reminders que ya deberían haberse enviado
+      date_time: { [Op.lte]: new Date() }
     }
 
     if (filters.frequency) whereConditions.frequency = filters.frequency
@@ -277,15 +302,21 @@ export const getUpcomingReminders = async (
     const now = new Date()
     const futureDate = new Date(now.getTime() + (hoursAhead * 60 * 60 * 1000))
 
+    const whereConditions: any = {
+      status: 'pending',
+      deleted: false,
+      date_time: {
+        [Op.between]: [now, futureDate]
+      }
+    }
+
+    // Si userId es 0, obtener de todos los usuarios
+    if (userId > 0) {
+      whereConditions.user_id = userId
+    }
+
     const reminders = await Reminder.findAll({
-      where: {
-        user_id: userId,
-        status: 'pending',
-        deleted: false,
-        date_time: {
-          [Op.between]: [now, futureDate]
-        }
-      },
+      where: whereConditions,
       include: [
         {
           model: User,
@@ -340,5 +371,151 @@ export const getStatistics = async (userId: number): Promise<any> => {
   } catch (error: any) {
     console.error('Error fetching statistics:', error)
     throw new Error('Error fetching statistics: ' + error.message)
+  }
+}
+
+// ==================== EMAIL SERVICES ====================
+
+export const sendReminderEmail = async (reminderId: number, userId: number): Promise<boolean> => {
+  try {
+    console.log(`🔍 Attempting to send email for reminder ${reminderId}`)
+    
+    // Test connection first
+    const connectionOK = await testEmailConnection()
+    if (!connectionOK) {
+      throw new Error('Email server connection failed')
+    }
+
+    const reminder = await getReminderById(reminderId, userId)
+    
+    if (!reminder) {
+      throw new Error('Reminder not found')
+    }
+
+    if (reminder.status === 'sent') {
+      throw new Error('Reminder already sent')
+    }
+
+    if (!reminder.user) {
+      throw new Error('User information not loaded')
+    }
+
+    console.log(`📧 Sending email to: ${reminder.user.email}`)
+    console.log(`📝 Subject: Recordatorio AURA: ${reminder.title}`)
+
+    const emailContent = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #A44076;">🔔 ¡Recordatorio de AURA!</h2>
+        <p>Hola ${reminder.user.name},</p>
+        <h3>${reminder.title}</h3>
+        ${reminder.description ? `<p>${reminder.description}</p>` : ''}
+        <p><strong>Fecha:</strong> ${new Date(reminder.date_time).toLocaleDateString('es-ES')}</p>
+        <p><strong>Hora:</strong> ${new Date(reminder.date_time).toLocaleTimeString('es-ES')}</p>
+        <p>Saludos,<br>Equipo AURA</p>
+      </div>
+    `
+
+    const mailOptions = {
+      from: `"AURA Recordatorios" <noreply@${process.env.DOMAIN}>`,
+      to: reminder.user.email,
+      subject: `🔔 Recordatorio AURA: ${reminder.title}`,
+      html: emailContent,
+    }
+
+    console.log('📤 Mail options:', {
+      from: mailOptions.from,
+      to: mailOptions.to,
+      subject: mailOptions.subject
+    })
+
+    const result = await emailTransporter.sendMail(mailOptions)
+    
+    console.log('✅ Email sent successfully:', result.messageId)
+
+    // Marcar como enviado
+    await markReminderAsSent(reminderId, userId)
+    
+    return true
+  } catch (error: any) {
+    console.error('❌ Error sending reminder email:', error)
+    console.error('Error details:', {
+      message: error.message,
+      code: error.code,
+      response: error.response,
+      responseCode: error.responseCode
+    })
+    throw new Error('Error sending reminder email: ' + error.message)
+  }
+}
+
+export const sendUpcomingRemindersNotification = async (userId: number, hoursAhead: number = 2): Promise<void> => {
+  try {
+    const upcomingReminders = await getUpcomingReminders(userId, hoursAhead)
+    
+    if (upcomingReminders.length === 0) return
+
+    const firstReminder = upcomingReminders[0]
+    
+    // Verificar que el usuario esté cargado
+    if (!firstReminder.user) {
+      throw new Error('User information not loaded')
+    }
+
+    const user = firstReminder.user
+    const remindersList = upcomingReminders.map(r => 
+      `• ${r.title} - ${new Date(r.date_time).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}`
+    ).join('\n')
+
+    const emailContent = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #E6E2D2; padding: 20px;">
+        <div style="background-color: white; padding: 30px; border-radius: 15px;">
+          <h2 style="color: #CB8D27; text-align: center;">⏰ Recordatorios próximos</h2>
+          <p>Hola ${user.name},</p>
+          <p>Tienes ${upcomingReminders.length} recordatorio(s) próximo(s):</p>
+          <div style="background-color: #f9f9f9; padding: 15px; border-radius: 8px; margin: 15px 0;">
+            <pre style="font-family: Arial, sans-serif; white-space: pre-line; margin: 0;">${remindersList}</pre>
+          </div>
+          <p style="color: #666; font-size: 12px;">¡Prepárate para no olvidar nada! 📚</p>
+        </div>
+      </div>
+    `
+
+    await emailTransporter.sendMail({
+      from: `"AURA Próximos" <noreply@${env.DOMAIN}>`,
+      to: user.email,
+      subject: `⏰ Tienes ${upcomingReminders.length} recordatorio(s) próximo(s)`,
+      html: emailContent,
+    })
+
+  } catch (error: any) {
+    console.error('Error sending upcoming reminders:', error)
+  }
+}
+
+export const checkAndSendPendingReminders = async (): Promise<void> => {
+  try {
+    const now = new Date()
+    const pendingReminders = await getPendingReminders({
+      date_to: now.toISOString()
+    })
+
+    console.log(`Found ${pendingReminders.length} pending reminders to send`)
+
+    for (const reminder of pendingReminders) {
+      try {
+        // Verificar que el usuario esté cargado antes de enviar
+        if (!reminder.user) {
+          console.error(`❌ User not loaded for reminder ${reminder.id}`)
+          continue
+        }
+
+        await sendReminderEmail(reminder.id, reminder.user_id)
+        console.log(`✅ Reminder email sent for: ${reminder.title} to ${reminder.user.email}`)
+      } catch (error) {
+        console.error(`❌ Failed to send reminder ${reminder.id}:`, error)
+      }
+    }
+  } catch (error: any) {
+    console.error('Error checking pending reminders:', error)
   }
 }
