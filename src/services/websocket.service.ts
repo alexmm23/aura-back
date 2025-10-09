@@ -31,12 +31,17 @@ export class WebSocketService {
     this.io.use(async (socket, next) => {
       try {
         const token =
-          socket.handshake.auth.token || socket.handshake.headers.authorization?.split(' ')[1]
-
+          socket.handshake.auth.token ||
+          socket.handshake.headers.authorization?.split(' ')[1] ||
+          (socket.handshake.headers.cookie
+            ? socket.handshake.headers.cookie
+                .split(';')
+                .find((c) => c.trim().startsWith('accessToken='))
+                ?.split('=')[1]
+            : null)
         if (!token) {
           return next(new Error('Token de autenticación requerido'))
         }
-
         const decoded = jwt.verify(token, env.JWT_SECRET) as any
         socket.data.userId = decoded.id
         socket.data.userEmail = decoded.email
