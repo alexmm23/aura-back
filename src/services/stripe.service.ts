@@ -1,5 +1,5 @@
 import Stripe from 'stripe'
-import { sendPaymentConfirmationEmail } from './reminder.service'
+import { sendPaymentConfirmationEmail } from './reminder.service.js'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
   apiVersion: '2024-06-20' as Stripe.LatestApiVersion,
