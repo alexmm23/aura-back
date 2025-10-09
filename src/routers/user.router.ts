@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express'
+import { Op } from 'sequelize'
 
 import {
   getAllUsers,
@@ -41,7 +42,7 @@ userRouter.post('/hash-password', async (req, res) => {
     const { password } = req.body
     if (!password) {
       res.status(400).json({ error: 'Password is required' })
-      return 
+      return
     }
     const hashed = await hashPassword(password)
     res.json({ hash: hashed })
@@ -206,6 +207,118 @@ userRouter.get(
       })
     } catch (error: any) {
       res.status(500).json({ error: error.message })
+    }
+  },
+)
+
+// GET /api/users/students - Obtener usuarios estudiantes y maestros
+userRouter.get(
+  '/students',
+  authenticateToken,
+  async (req: Request & { user?: UserAttributes }, res: Response): Promise<void> => {
+    try {
+      const userId = req.user?.id
+      if (!userId) {
+        res.status(401).json({ error: 'Usuario no autenticado' })
+        return
+      }
+
+      const { role, search, limit = '50' } = req.query
+
+      // Construir filtros
+      const whereClause: any = {
+        deleted: false, // Solo usuarios activos
+      }
+
+      // Filtrar por rol si se especifica
+      if (role === 'student') {
+        whereClause.role_id = 2 // Asumiendo que role_id 2 es estudiante
+      } else if (role === 'teacher') {
+        whereClause.role_id = 3 // Asumiendo que role_id 3 es maestro
+      } else {
+        // Si no se especifica rol, obtener estudiantes y maestros
+        whereClause.role_id = [2, 3]
+      }
+
+      // Agregar búsqueda por nombre/email si se proporciona
+      if (search && typeof search === 'string') {
+        const searchTerm = `%${search.trim()}%`
+        whereClause[Op.or] = [
+          { name: { [Op.like]: searchTerm } },
+          { lastname: { [Op.like]: searchTerm } },
+          { email: { [Op.like]: searchTerm } },
+        ]
+      }
+
+      const limitNum = Math.min(100, Math.max(1, parseInt(limit as string) || 50))
+
+      // Obtener usuarios
+      const users = await User.findAll({
+        where: whereClause,
+        attributes: [
+          'id',
+          'name',
+          'lastname',
+          'email',
+          'role_id',
+          'subscription_status',
+          'created_at',
+        ],
+        limit: limitNum,
+        order: [
+          ['name', 'ASC'],
+          ['lastname', 'ASC'],
+        ],
+      })
+
+      // Formatear respuesta
+      const formattedUsers = users.map((user: any) => {
+        const userData = user.dataValues
+        return {
+          id: userData.id,
+          name: userData.name,
+          lastname: userData.lastname,
+          email: userData.email,
+          full_name: `${userData.name} ${userData.lastname}`,
+          role: userData.role_id === 2 ? 'student' : userData.role_id === 3 ? 'teacher' : 'unknown',
+          role_id: userData.role_id,
+          subscription_status: userData.subscription_status,
+          created_at: userData.created_at,
+        }
+      })
+
+      // Separar por roles si no se filtró específicamente
+      let response: any = {
+        success: true,
+        data: {
+          users: formattedUsers,
+          total: formattedUsers.length,
+        },
+      }
+
+      // Si no se especificó rol, agrupar por tipo
+      if (!role) {
+        const students = formattedUsers.filter((u: any) => u.role === 'student')
+        const teachers = formattedUsers.filter((u: any) => u.role === 'teacher')
+
+        response.data = {
+          students,
+          teachers,
+          total: {
+            students: students.length,
+            teachers: teachers.length,
+            all: formattedUsers.length,
+          },
+        }
+      }
+
+      res.json(response)
+    } catch (error: any) {
+      console.error('Error getting students/teachers:', error)
+      res.status(500).json({
+        error: 'Error al obtener usuarios',
+        details: error.message,
+      })
     }
   },
 )

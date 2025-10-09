@@ -8,6 +8,8 @@ import { ForumPost } from './forumPost.model.js'
 import { ForumComment } from './forumComment.model.js'
 import { ForumAttachment } from './forumAttachment.model.js'
 import { Reminder } from './reminder.model.js'
+import { Chat } from './chat.model.js'
+import { Message } from './message.model.js'
 
 // Definir todas las asociaciones aquí para evitar dependencias circulares
 
@@ -99,15 +101,43 @@ Reminder.belongsTo(User, { foreignKey: 'user_id', as: 'user' })
 // User tiene muchos Reminders
 User.hasMany(Reminder, { foreignKey: 'user_id', as: 'reminders' })
 
-export { 
-  Content, 
-  Page, 
-  Notebook, 
-  User, 
+// ==================== CHAT ASSOCIATIONS ====================
+
+// Chat pertenece a User (estudiante)
+Chat.belongsTo(User, { foreignKey: 'student_id', as: 'student' })
+
+// Chat pertenece a User (maestro)
+Chat.belongsTo(User, { foreignKey: 'teacher_id', as: 'teacher' })
+
+// User tiene muchos Chats como estudiante
+User.hasMany(Chat, { foreignKey: 'student_id', as: 'student_chats' })
+
+// User tiene muchos Chats como maestro
+User.hasMany(Chat, { foreignKey: 'teacher_id', as: 'teacher_chats' })
+
+// Chat tiene muchos Messages
+Chat.hasMany(Message, { foreignKey: 'chat_id', as: 'messages' })
+
+// Message pertenece a Chat
+Message.belongsTo(Chat, { foreignKey: 'chat_id', as: 'chat' })
+
+// Message pertenece a User (remitente)
+Message.belongsTo(User, { foreignKey: 'sender_id', as: 'sender' })
+
+// User tiene muchos Messages
+User.hasMany(Message, { foreignKey: 'sender_id', as: 'sent_messages' })
+
+export {
+  Content,
+  Page,
+  Notebook,
+  User,
   UserSession,
   Forum,
   ForumPost,
   ForumComment,
   ForumAttachment,
-  Reminder
+  Reminder,
+  Chat,
+  Message,
 }

@@ -10,6 +10,8 @@ import { ForumPost as ForumPostModel } from './forumPost.model.js'
 import { ForumComment as ForumCommentModel } from './forumComment.model.js'
 import { ForumAttachment as ForumAttachmentModel } from './forumAttachment.model.js'
 import { Reminder as ReminderModel } from './reminder.model.js'
+import { Chat as ChatModel } from './chat.model.js'
+import { Message as MessageModel } from './message.model.js'
 
 // Luego importar las asociaciones (esto configurará las relaciones)
 import './associations.js'
@@ -26,6 +28,8 @@ export const ForumPost = ForumPostModel
 export const ForumComment = ForumCommentModel
 export const ForumAttachment = ForumAttachmentModel
 export const Reminder = ReminderModel
+export const Chat = ChatModel
+export const Message = MessageModel
 
 // Export default para compatibilidad
 export default {
@@ -40,4 +44,6 @@ export default {
   ForumComment,
   ForumAttachment,
   Reminder,
+  Chat,
+  Message,
 }
