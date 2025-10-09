@@ -519,3 +519,125 @@ export const checkAndSendPendingReminders = async (): Promise<void> => {
     console.error('Error checking pending reminders:', error)
   }
 }
+
+// ==================== PAYMENT EMAIL FUNCTION ====================
+
+export const sendPaymentConfirmationEmail = async (email: string, paymentData: any): Promise<boolean> => {
+  try {
+    console.log(`📧 Sending payment confirmation to: ${email}`)
+    
+    // Usar la misma función de test que ya funciona
+    const connectionOK = await testEmailConnection()
+    if (!connectionOK) {
+      throw new Error('Email server connection failed')
+    }
+
+    const paymentDate = new Date(paymentData.date).toLocaleDateString('es-ES', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+
+    const emailContent = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #EDE6DB; padding: 20px;">
+        <div style="background-color: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+          
+          <!-- Header con gradiente -->
+          <div style="background: linear-gradient(90deg, #B065C4 0%, #F4A45B 100%); padding: 20px; border-radius: 10px; text-align: center; margin-bottom: 30px;">
+            <h1 style="color: white; margin: 0; font-size: 28px;">¡Pago Confirmado!</h1>
+            <p style="color: white; margin: 10px 0 0 0; font-size: 16px;">Bienvenido a AURA Premium</p>
+          </div>
+
+          <!-- Información del pago -->
+          <div style="background-color: #f9f9f9; padding: 20px; border-radius: 10px; margin: 20px 0; border-left: 4px solid #4CAF50;">
+            <h3 style="color: #333; margin-top: 0;">💳 Detalles del Pago</h3>
+            
+            <div style="background-color: white; padding: 15px; border-radius: 8px; margin: 15px 0;">
+              <table style="width: 100%; border-collapse: collapse;">
+                <tr>
+                  <td style="padding: 8px 0; font-weight: bold; color: #666;">Monto:</td>
+                  <td style="padding: 8px 0; text-align: right; font-size: 18px; font-weight: bold; color: #4CAF50;">$${paymentData.amount} ${paymentData.currency}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px 0; font-weight: bold; color: #666;">ID de Pago:</td>
+                  <td style="padding: 8px 0; text-align: right; color: #333;">${paymentData.paymentId}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px 0; font-weight: bold; color: #666;">Fecha:</td>
+                  <td style="padding: 8px 0; text-align: right; color: #333;">${paymentDate}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px 0; font-weight: bold; color: #666;">Email:</td>
+                  <td style="padding: 8px 0; text-align: right; color: #333;">${email}</td>
+                </tr>
+                ${paymentData.phone ? `
+                <tr>
+                  <td style="padding: 8px 0; font-weight: bold; color: #666;">Teléfono:</td>
+                  <td style="padding: 8px 0; text-align: right; color: #333;">${paymentData.phone}</td>
+                </tr>` : ''}
+                ${paymentData.country ? `
+                <tr>
+                  <td style="padding: 8px 0; font-weight: bold; color: #666;">País:</td>
+                  <td style="padding: 8px 0; text-align: right; color: #333;">${paymentData.country}</td>
+                </tr>` : ''}
+              </table>
+            </div>
+          </div>
+
+          <!-- Beneficios Premium -->
+          <div style="background-color: #E8F5E8; padding: 20px; border-radius: 10px; margin: 20px 0; border-left: 4px solid #4CAF50;">
+            <h3 style="color: #2E7D32; margin-top: 0;">Beneficios de AURA Premium</h3>
+            <ul style="color: #333; margin: 0; padding-left: 20px;">
+              <li style="margin: 8px 0;">Herramientas avanzadas de estudio</li>
+              <li style="margin: 8px 0;">Más espacio para guardar tus notas</li>
+              <li style="margin: 8px 0;">Más request a la IA</li>
+            </ul>
+          </div>
+
+          <!-- Footer -->
+          <div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee;">
+            <div style="background: linear-gradient(90deg, #B065C4 0%, #F4A45B 100%); color: white; padding: 15px; border-radius: 8px; display: inline-block; margin-bottom: 15px;">
+              <p style="margin: 0; font-weight: bold; font-size: 16px;">✨ AURA - Tu asistente académico ✨</p>
+            </div>
+            <p style="color: #666; font-size: 12px; margin: 0;">
+              Si tienes alguna pregunta, no dudes en contactarnos.<br>
+              Este correo fue enviado automáticamente, por favor no respondas.
+            </p>
+          </div>
+        </div>
+      </div>
+    `;
+
+    // Usar el MISMO emailTransporter que ya funciona
+    const mailOptions = {
+      from: `"AURA Pagos" <noreply@${process.env.DOMAIN}>`,
+      to: email,
+      subject: '🎉 ¡Pago confirmado! Bienvenido a AURA Premium',
+      html: emailContent,
+    };
+
+    console.log('📤 Sending payment email with options:', {
+      from: mailOptions.from,
+      to: mailOptions.to,
+      subject: mailOptions.subject
+    });
+
+    const result = await emailTransporter.sendMail(mailOptions);
+    
+    console.log('✅ Payment confirmation email sent successfully:', result.messageId);
+    
+    return true;
+  } catch (error: any) {
+    console.error('❌ Error sending payment confirmation email:', error);
+    console.error('Error details:', {
+      message: error.message,
+      code: error.code,
+      response: error.response,
+      responseCode: error.responseCode
+    });
+    throw new Error('Error sending payment confirmation email: ' + error.message);
+  }
+};

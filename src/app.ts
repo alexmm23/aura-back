@@ -43,7 +43,7 @@ const routes = [
   { path: `${API_BASE_PATH}/teams`, router: teamsRouter },
   { path: `${API_BASE_PATH}/notebook`, router: notebookRouter },
   { path: `${API_BASE_PATH}/note`, router: noteRouter },
-  { path: `${API_BASE_PATH}/payment`, router: paymentRouter },
+  { path: `${API_BASE_PATH}/payments`, router: paymentRouter },
   { path: `${API_BASE_PATH}/forums`, router: forumRouter },
   { path: `${API_BASE_PATH}/reminders`, router: reminderRouter },
 ]
