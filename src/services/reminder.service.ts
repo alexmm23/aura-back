@@ -1,7 +1,7 @@
 import { Reminder } from '../models/reminder.model.js'
 import { User } from '../models/user.model.js'
-import { 
-  ReminderCreationAttributes, 
+import {
+  ReminderCreationAttributes,
   ReminderAttributes,
   ReminderUpdateAttributes,
   ReminderFilters,
@@ -9,7 +9,7 @@ import {
   CreateReminderRequest,
   UpdateReminderRequest,
   PaginatedReminders,
-  PaginationOptions
+  PaginationOptions,
 } from '../types/reminder.types.js'
 import { createRequire } from 'module'
 import nodemailer from 'nodemailer'
@@ -44,9 +44,9 @@ const testEmailConnection = async () => {
 // ==================== REMINDER SERVICES ====================
 
 export const getAllReminders = async (
-  userId: number, 
+  userId: number,
   filters: ReminderFilters = {},
-  pagination: PaginationOptions = {}
+  pagination: PaginationOptions = {},
 ): Promise<PaginatedReminders> => {
   try {
     const page = pagination.page || 1
@@ -57,7 +57,7 @@ export const getAllReminders = async (
 
     const whereConditions: any = {
       user_id: userId,
-      deleted: false
+      deleted: false,
     }
 
     // Aplicar filtros
@@ -65,22 +65,22 @@ export const getAllReminders = async (
     if (filters.frequency) whereConditions.frequency = filters.frequency
     if (filters.date_from && filters.date_to) {
       whereConditions.date_time = {
-        [Op.between]: [new Date(filters.date_from), new Date(filters.date_to)]
+        [Op.between]: [new Date(filters.date_from), new Date(filters.date_to)],
       }
     } else if (filters.date_from) {
       whereConditions.date_time = {
-        [Op.gte]: new Date(filters.date_from)
+        [Op.gte]: new Date(filters.date_from),
       }
     } else if (filters.date_to) {
       whereConditions.date_time = {
-        [Op.lte]: new Date(filters.date_to)
+        [Op.lte]: new Date(filters.date_to),
       }
     }
 
     if (filters.search) {
       whereConditions[Op.or] = [
         { title: { [Op.like]: `%${filters.search}%` } },
-        { description: { [Op.like]: `%${filters.search}%` } }
+        { description: { [Op.like]: `%${filters.search}%` } },
       ]
     }
 
@@ -90,12 +90,12 @@ export const getAllReminders = async (
         {
           model: User,
           as: 'user',
-          attributes: ['id', 'name', 'lastname', 'email']
-        }
+          attributes: ['id', 'name', 'lastname', 'email'],
+        },
       ],
       order: [[sortBy, sortOrder]],
       limit,
-      offset
+      offset,
     })
 
     const reminders = rows.map((reminder: any) => reminder.toJSON()) as ReminderWithUser[]
@@ -105,7 +105,7 @@ export const getAllReminders = async (
       total: count,
       page,
       limit,
-      totalPages: Math.ceil(count / limit)
+      totalPages: Math.ceil(count / limit),
     }
   } catch (error: any) {
     console.error('Error fetching reminders:', error)
@@ -113,21 +113,24 @@ export const getAllReminders = async (
   }
 }
 
-export const getReminderById = async (id: number, userId: number): Promise<ReminderWithUser | null> => {
+export const getReminderById = async (
+  id: number,
+  userId: number,
+): Promise<ReminderWithUser | null> => {
   try {
     const reminder = await Reminder.findOne({
-      where: { 
-        id, 
+      where: {
+        id,
         user_id: userId,
-        deleted: false 
+        deleted: false,
       },
       include: [
         {
           model: User,
           as: 'user',
-          attributes: ['id', 'name', 'lastname', 'email']
-        }
-      ]
+          attributes: ['id', 'name', 'lastname', 'email'],
+        },
+      ],
     })
 
     if (!reminder) return null
@@ -140,8 +143,8 @@ export const getReminderById = async (id: number, userId: number): Promise<Remin
 }
 
 export const createReminder = async (
-  reminderData: CreateReminderRequest, 
-  userId: number
+  reminderData: CreateReminderRequest,
+  userId: number,
 ): Promise<ReminderWithUser> => {
   try {
     // Validar que la fecha sea futura
@@ -156,14 +159,11 @@ export const createReminder = async (
       date_time: reminderDate,
       frequency: reminderData.frequency || 'once',
       user_id: userId,
-      status: 'pending'
+      status: 'pending',
     })
 
     // Obtener el reminder completo con relaciones
-    const reminderWithUser = await getReminderById(
-      newReminder.getDataValue('id'), 
-      userId
-    )
+    const reminderWithUser = await getReminderById(newReminder.getDataValue('id'), userId)
 
     return reminderWithUser!
   } catch (error: any) {
@@ -173,19 +173,19 @@ export const createReminder = async (
 }
 
 export const updateReminder = async (
-  id: number, 
-  reminderData: UpdateReminderRequest, 
-  userId: number
+  id: number,
+  reminderData: UpdateReminderRequest,
+  userId: number,
 ): Promise<ReminderWithUser | null> => {
   try {
-    const reminder = await Reminder.findOne({ 
-      where: { 
-        id, 
+    const reminder = await Reminder.findOne({
+      where: {
+        id,
         user_id: userId,
-        deleted: false 
-      } 
+        deleted: false,
+      },
     })
-    
+
     if (!reminder) {
       throw new Error('Reminder not found')
     }
@@ -201,7 +201,8 @@ export const updateReminder = async (
     const updateData: any = {}
     if (reminderData.title !== undefined) updateData.title = reminderData.title
     if (reminderData.description !== undefined) updateData.description = reminderData.description
-    if (reminderData.date_time !== undefined) updateData.date_time = new Date(reminderData.date_time)
+    if (reminderData.date_time !== undefined)
+      updateData.date_time = new Date(reminderData.date_time)
     if (reminderData.frequency !== undefined) updateData.frequency = reminderData.frequency
     if (reminderData.status !== undefined) updateData.status = reminderData.status
 
@@ -217,14 +218,14 @@ export const updateReminder = async (
 
 export const deleteReminder = async (id: number, userId: number): Promise<boolean> => {
   try {
-    const reminder = await Reminder.findOne({ 
-      where: { 
-        id, 
+    const reminder = await Reminder.findOne({
+      where: {
+        id,
         user_id: userId,
-        deleted: false 
-      } 
+        deleted: false,
+      },
     })
-    
+
     if (!reminder) {
       throw new Error('Reminder not found')
     }
@@ -237,17 +238,20 @@ export const deleteReminder = async (id: number, userId: number): Promise<boolea
   }
 }
 
-export const markReminderAsSent = async (id: number, userId: number): Promise<ReminderWithUser | null> => {
+export const markReminderAsSent = async (
+  id: number,
+  userId: number,
+): Promise<ReminderWithUser | null> => {
   try {
-    const reminder = await Reminder.findOne({ 
-      where: { 
-        id, 
+    const reminder = await Reminder.findOne({
+      where: {
+        id,
         user_id: userId,
         deleted: false,
-        status: 'pending'
-      } 
+        status: 'pending',
+      },
     })
-    
+
     if (!reminder) {
       throw new Error('Pending reminder not found')
     }
@@ -264,12 +268,14 @@ export const markReminderAsSent = async (id: number, userId: number): Promise<Re
 
 // ==================== ADMIN/SYSTEM SERVICES ====================
 
-export const getPendingReminders = async (filters: ReminderFilters = {}): Promise<ReminderWithUser[]> => {
+export const getPendingReminders = async (
+  filters: ReminderFilters = {},
+): Promise<ReminderWithUser[]> => {
   try {
     const whereConditions: any = {
       status: 'pending',
       deleted: false,
-      date_time: { [Op.lte]: new Date() }
+      date_time: { [Op.lte]: new Date() },
     }
 
     if (filters.frequency) whereConditions.frequency = filters.frequency
@@ -281,10 +287,10 @@ export const getPendingReminders = async (filters: ReminderFilters = {}): Promis
         {
           model: User,
           as: 'user',
-          attributes: ['id', 'name', 'lastname', 'email']
-        }
+          attributes: ['id', 'name', 'lastname', 'email'],
+        },
       ],
-      order: [['date_time', 'ASC']]
+      order: [['date_time', 'ASC']],
     })
 
     return reminders.map((reminder: any) => reminder.toJSON()) as ReminderWithUser[]
@@ -295,19 +301,19 @@ export const getPendingReminders = async (filters: ReminderFilters = {}): Promis
 }
 
 export const getUpcomingReminders = async (
-  userId: number, 
-  hoursAhead: number = 24
+  userId: number,
+  hoursAhead: number = 24,
 ): Promise<ReminderWithUser[]> => {
   try {
     const now = new Date()
-    const futureDate = new Date(now.getTime() + (hoursAhead * 60 * 60 * 1000))
+    const futureDate = new Date(now.getTime() + hoursAhead * 60 * 60 * 1000)
 
     const whereConditions: any = {
       status: 'pending',
       deleted: false,
       date_time: {
-        [Op.between]: [now, futureDate]
-      }
+        [Op.between]: [now, futureDate],
+      },
     }
 
     // Si userId es 0, obtener de todos los usuarios
@@ -321,10 +327,10 @@ export const getUpcomingReminders = async (
         {
           model: User,
           as: 'user',
-          attributes: ['id', 'name', 'lastname', 'email']
-        }
+          attributes: ['id', 'name', 'lastname', 'email'],
+        },
       ],
-      order: [['date_time', 'ASC']]
+      order: [['date_time', 'ASC']],
     })
 
     return reminders.map((reminder: any) => reminder.toJSON()) as ReminderWithUser[]
@@ -337,15 +343,15 @@ export const getUpcomingReminders = async (
 export const getStatistics = async (userId: number): Promise<any> => {
   try {
     const totalReminders = await Reminder.count({
-      where: { user_id: userId, deleted: false }
+      where: { user_id: userId, deleted: false },
     })
 
     const pendingReminders = await Reminder.count({
-      where: { user_id: userId, status: 'pending', deleted: false }
+      where: { user_id: userId, status: 'pending', deleted: false },
     })
 
     const sentReminders = await Reminder.count({
-      where: { user_id: userId, status: 'sent', deleted: false }
+      where: { user_id: userId, status: 'sent', deleted: false },
     })
 
     const upcomingToday = await Reminder.count({
@@ -356,17 +362,17 @@ export const getStatistics = async (userId: number): Promise<any> => {
         date_time: {
           [Op.between]: [
             new Date(new Date().setHours(0, 0, 0, 0)),
-            new Date(new Date().setHours(23, 59, 59, 999))
-          ]
-        }
-      }
+            new Date(new Date().setHours(23, 59, 59, 999)),
+          ],
+        },
+      },
     })
 
     return {
       total: totalReminders,
       pending: pendingReminders,
       sent: sentReminders,
-      upcoming_today: upcomingToday
+      upcoming_today: upcomingToday,
     }
   } catch (error: any) {
     console.error('Error fetching statistics:', error)
@@ -379,7 +385,7 @@ export const getStatistics = async (userId: number): Promise<any> => {
 export const sendReminderEmail = async (reminderId: number, userId: number): Promise<boolean> => {
   try {
     console.log(`🔍 Attempting to send email for reminder ${reminderId}`)
-    
+
     // Test connection first
     const connectionOK = await testEmailConnection()
     if (!connectionOK) {
@@ -387,7 +393,7 @@ export const sendReminderEmail = async (reminderId: number, userId: number): Pro
     }
 
     const reminder = await getReminderById(reminderId, userId)
-    
+
     if (!reminder) {
       throw new Error('Reminder not found')
     }
@@ -425,16 +431,16 @@ export const sendReminderEmail = async (reminderId: number, userId: number): Pro
     console.log('📤 Mail options:', {
       from: mailOptions.from,
       to: mailOptions.to,
-      subject: mailOptions.subject
+      subject: mailOptions.subject,
     })
 
     const result = await emailTransporter.sendMail(mailOptions)
-    
+
     console.log('✅ Email sent successfully:', result.messageId)
 
     // Marcar como enviado
     await markReminderAsSent(reminderId, userId)
-    
+
     return true
   } catch (error: any) {
     console.error('❌ Error sending reminder email:', error)
@@ -442,29 +448,35 @@ export const sendReminderEmail = async (reminderId: number, userId: number): Pro
       message: error.message,
       code: error.code,
       response: error.response,
-      responseCode: error.responseCode
+      responseCode: error.responseCode,
     })
     throw new Error('Error sending reminder email: ' + error.message)
   }
 }
 
-export const sendUpcomingRemindersNotification = async (userId: number, hoursAhead: number = 2): Promise<void> => {
+export const sendUpcomingRemindersNotification = async (
+  userId: number,
+  hoursAhead: number = 2,
+): Promise<void> => {
   try {
     const upcomingReminders = await getUpcomingReminders(userId, hoursAhead)
-    
+
     if (upcomingReminders.length === 0) return
 
     const firstReminder = upcomingReminders[0]
-    
+
     // Verificar que el usuario esté cargado
     if (!firstReminder.user) {
       throw new Error('User information not loaded')
     }
 
     const user = firstReminder.user
-    const remindersList = upcomingReminders.map(r => 
-      `• ${r.title} - ${new Date(r.date_time).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}`
-    ).join('\n')
+    const remindersList = upcomingReminders
+      .map(
+        (r) =>
+          `• ${r.title} - ${new Date(r.date_time).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}`,
+      )
+      .join('\n')
 
     const emailContent = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #E6E2D2; padding: 20px;">
@@ -486,7 +498,6 @@ export const sendUpcomingRemindersNotification = async (userId: number, hoursAhe
       subject: `⏰ Tienes ${upcomingReminders.length} recordatorio(s) próximo(s)`,
       html: emailContent,
     })
-
   } catch (error: any) {
     console.error('Error sending upcoming reminders:', error)
   }
@@ -496,7 +507,7 @@ export const checkAndSendPendingReminders = async (): Promise<void> => {
   try {
     const now = new Date()
     const pendingReminders = await getPendingReminders({
-      date_to: now.toISOString()
+      date_to: now.toISOString(),
     })
 
     console.log(`Found ${pendingReminders.length} pending reminders to send`)
@@ -522,10 +533,13 @@ export const checkAndSendPendingReminders = async (): Promise<void> => {
 
 // ==================== PAYMENT EMAIL FUNCTION ====================
 
-export const sendPaymentConfirmationEmail = async (email: string, paymentData: any): Promise<boolean> => {
+export const sendPaymentConfirmationEmail = async (
+  email: string,
+  paymentData: any,
+): Promise<boolean> => {
   try {
     console.log(`📧 Sending payment confirmation to: ${email}`)
-    
+
     // Usar la misma función de test que ya funciona
     const connectionOK = await testEmailConnection()
     if (!connectionOK) {
@@ -538,8 +552,8 @@ export const sendPaymentConfirmationEmail = async (email: string, paymentData: a
       month: 'long',
       day: 'numeric',
       hour: '2-digit',
-      minute: '2-digit'
-    });
+      minute: '2-digit',
+    })
 
     const emailContent = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #EDE6DB; padding: 20px;">
@@ -573,16 +587,24 @@ export const sendPaymentConfirmationEmail = async (email: string, paymentData: a
                   <td style="padding: 8px 0; font-weight: bold; color: #666;">Email:</td>
                   <td style="padding: 8px 0; text-align: right; color: #333;">${email}</td>
                 </tr>
-                ${paymentData.phone ? `
+                ${
+                  paymentData.phone
+                    ? `
                 <tr>
                   <td style="padding: 8px 0; font-weight: bold; color: #666;">Teléfono:</td>
                   <td style="padding: 8px 0; text-align: right; color: #333;">${paymentData.phone}</td>
-                </tr>` : ''}
-                ${paymentData.country ? `
+                </tr>`
+                    : ''
+                }
+                ${
+                  paymentData.country
+                    ? `
                 <tr>
                   <td style="padding: 8px 0; font-weight: bold; color: #666;">País:</td>
                   <td style="padding: 8px 0; text-align: right; color: #333;">${paymentData.country}</td>
-                </tr>` : ''}
+                </tr>`
+                    : ''
+                }
               </table>
             </div>
           </div>
@@ -609,7 +631,7 @@ export const sendPaymentConfirmationEmail = async (email: string, paymentData: a
           </div>
         </div>
       </div>
-    `;
+    `
 
     // Usar el MISMO emailTransporter que ya funciona
     const mailOptions = {
@@ -617,27 +639,27 @@ export const sendPaymentConfirmationEmail = async (email: string, paymentData: a
       to: email,
       subject: '🎉 ¡Pago confirmado! Bienvenido a AURA Premium',
       html: emailContent,
-    };
+    }
 
     console.log('📤 Sending payment email with options:', {
       from: mailOptions.from,
       to: mailOptions.to,
-      subject: mailOptions.subject
-    });
+      subject: mailOptions.subject,
+    })
 
-    const result = await emailTransporter.sendMail(mailOptions);
-    
-    console.log('✅ Payment confirmation email sent successfully:', result.messageId);
-    
-    return true;
+    const result = await emailTransporter.sendMail(mailOptions)
+
+    console.log('✅ Payment confirmation email sent successfully:', result.messageId)
+
+    return true
   } catch (error: any) {
-    console.error('❌ Error sending payment confirmation email:', error);
+    console.error('❌ Error sending payment confirmation email:', error)
     console.error('Error details:', {
       message: error.message,
       code: error.code,
       response: error.response,
-      responseCode: error.responseCode
-    });
-    throw new Error('Error sending payment confirmation email: ' + error.message);
+      responseCode: error.responseCode,
+    })
+    throw new Error('Error sending payment confirmation email: ' + error.message)
   }
-};
+}
