@@ -17,6 +17,7 @@ import { chatRouter } from './routers/chat.router.js'
 
 // Importar modelos con asociaciones configuradas
 import './models/index.js'
+import { checkAndSendPendingReminders } from '@/services/reminder.service'
 
 const app = express()
 const { API_BASE_PATH, CORS_ORIGIN, PORT } = env
@@ -59,6 +60,38 @@ console.log('🚀 All routes registered successfully')
 
 app.get('/', (req, res) => {
   res.send('Hello World!')
+})
+
+// Health check endpoint para Railway
+app.get('/health', (req, res) => {
+  res.status(200).json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    service: 'aura-backend',
+  })
+})
+
+// Endpoint para el cron job de Railway
+app.post('/cron/check-reminders', async (req, res) => {
+  try {
+    console.log('Railway cron job triggered: checking pending reminders...')
+
+    // Llamar a tu función que YA EXISTE
+    await checkAndSendPendingReminders()
+
+    res.status(200).json({
+      success: true,
+      message: 'Pending reminders checked successfully',
+      timestamp: new Date().toISOString(),
+    })
+  } catch (error: any) {
+    console.error('Error in Railway cron job:', error)
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      timestamp: new Date().toISOString(),
+    })
+  }
 })
 
 export default app

@@ -507,7 +507,7 @@ export const checkAndSendPendingReminders = async (): Promise<void> => {
   try {
     const now = new Date()
     const pendingReminders = await getPendingReminders({
-      date_to: now.toISOString(),
+      date_to: now.toISOString()
     })
 
     console.log(`Found ${pendingReminders.length} pending reminders to send`)
