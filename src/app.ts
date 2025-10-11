@@ -1,5 +1,6 @@
 import express from 'express'
 import cookieParser from 'cookie-parser'
+import cron from 'node-cron' // ✅ AGREGAR ESTA LÍNEA
 import { userRouter } from './routers/user.router.js'
 import { authRouter } from './routers/auth.router.js'
 import { googleAuthRouter } from './routers/googleAuth.router.js'
@@ -34,8 +35,7 @@ app.use(
   }),
 )
 app.use('/payment', paymentRouter)
-// app.use(checkRole)
-// app.use(errorHandler)
+
 const routes = [
   { path: `${API_BASE_PATH}/users`, router: userRouter },
   { path: `${API_BASE_PATH}/auth`, router: authRouter },
@@ -75,10 +75,7 @@ app.get('/health', (req, res) => {
 app.post('/cron/check-reminders', async (req, res) => {
   try {
     console.log('Railway cron job triggered: checking pending reminders...')
-
-    // Llamar a tu función que YA EXISTE
     await checkAndSendPendingReminders()
-
     res.status(200).json({
       success: true,
       message: 'Pending reminders checked successfully',
@@ -93,5 +90,21 @@ app.post('/cron/check-reminders', async (req, res) => {
     })
   }
 })
+
+// ==================== CRON JOB ACTIVO ====================
+
+// Schedule a task to run every 5 minutes
+cron.schedule('*/5 * * * *', async () => {
+  console.log(' Running cron job: checking pending reminders...')
+  try {
+    // Perform reminder checking and email sending
+    await checkAndSendPendingReminders()
+    console.log('Cron job completed successfully')
+  } catch (error: any) {
+    console.error('Error in cron job:', error)
+  }
+})
+
+console.log('✅ Cron job scheduled to run every 5 minutes')
 
 export default app
