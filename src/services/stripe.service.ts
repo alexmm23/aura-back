@@ -8,7 +8,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
 /**
  * Confirma un pago de $99.00 MXN con un paymentMethodId
  */
-export const confirmPayment = async (paymentMethodId: string, userEmail?: string) => {
+export const confirmPayment = async (paymentMethodId: string, userEmail?: string, userId?: number) => {
   try {
     const amount = 9900 // $99 MXN en centavos
     const currency = 'mxn'
@@ -24,6 +24,9 @@ export const confirmPayment = async (paymentMethodId: string, userEmail?: string
         enabled: true,
         allow_redirects: 'never',
       },
+      metadata: { 
+        userId: userId ? userId.toString() : 'unknown'
+      }
     })
 
     console.log(`💳 Payment status: ${paymentIntent.status}`)

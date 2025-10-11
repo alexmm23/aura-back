@@ -22,6 +22,8 @@ import { checkAndSendPendingReminders } from '@/services/reminder.service'
 
 const app = express()
 const { API_BASE_PATH, CORS_ORIGIN, PORT } = env
+app.use('/api/payment', paymentRouter)
+app.use('/payment', paymentRouter)
 
 app.use(express.json({ limit: '50mb' }))
 app.use(express.urlencoded({ extended: true, limit: '50mb' }))
