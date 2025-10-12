@@ -15,6 +15,7 @@ import { paymentRouter } from './routers/payment.router.js'
 import { forumRouter } from './routers/forum.router.js'
 import { reminderRouter } from './routers/reminder.router.js'
 import { chatRouter } from './routers/chat.router.js'
+import { auraAiRouter } from './routers/auraAi.router.js'
 
 // Importar modelos con asociaciones configuradas
 import './models/index.js'
@@ -51,6 +52,7 @@ const routes = [
   { path: `${API_BASE_PATH}/forums`, router: forumRouter },
   { path: `${API_BASE_PATH}/reminders`, router: reminderRouter },
   { path: `${API_BASE_PATH}/chats`, router: chatRouter },
+  { path: `${API_BASE_PATH}/auraai`, router: auraAiRouter },
 ]
 
 routes.forEach(({ path, router }) => {
