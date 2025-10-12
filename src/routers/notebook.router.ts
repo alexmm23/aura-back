@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express'
 import { authenticateToken } from '@/middlewares/auth.middleware'
 import { NotebookService } from '@/services/notebook.service'
 import { UserAttributes } from '@/types/user.types'
+import env from '@/config/enviroment'
 
 // Extender el tipo Request para incluir la propiedad user
 declare module 'express-serve-static-core' {
@@ -84,6 +85,62 @@ notebookRouter.put('/edit/:id', authenticateToken, async (req: Request, res: Res
     const updatedNotebook = await notebookService.updateNotebook(notebookId, title)
     res.status(200).json({ message: 'Notebook updated successfully' })
   } catch (error) {
+    res.status(500).json({ error: `Internal Server Error: ${error}` })
+  }
+})
+
+// GET /api/notebook/pages - Obtener todas las páginas del usuario
+notebookRouter.get('/pages', authenticateToken, async (req: Request, res: Response) => {
+  try {
+    const userId = req.user?.id
+
+    if (!userId) {
+      res.status(400).json({ error: 'User ID not found in token' })
+      return
+    }
+
+    // Determinar la URL base según el entorno
+    const baseUrl =
+      env.NODE_ENV === 'development' ? 'http://localhost:3000' : 'https://back.aurapp.com.mx'
+
+    // Obtener todas las páginas del usuario a través de sus notebooks
+    const pagesData = await notebookService.getAllUserPages(Number(userId))
+
+    const pages = pagesData.map((page: any) => {
+      return {
+        id: page.id,
+        title: page.title,
+        createdAt: page.created_at,
+        contents: page.contents.map((content: any) => {
+          // Si el content.data es una ruta de imagen, agregar el baseUrl
+          let dataWithUrl = content.data
+          if (content.type === 'image' && content.data && !content.data.startsWith('http')) {
+            dataWithUrl = `${baseUrl}${content.data.startsWith('/') ? '' : '/'}${content.data}`
+          }
+
+          return {
+            id: content.id,
+            type: content.type,
+            data: dataWithUrl,
+            x: content.x,
+            y: content.y,
+            width: content.width,
+            height: content.height,
+            createdAt: content.created_at,
+          }
+        }),
+      }
+    })
+
+    res.status(200).json({
+      success: true,
+      data: {
+        pages,
+        total: pages.length,
+      },
+    })
+  } catch (error) {
+    console.error('Error getting user pages:', error)
     res.status(500).json({ error: `Internal Server Error: ${error}` })
   }
 })

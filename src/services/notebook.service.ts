@@ -137,4 +137,31 @@ export class NotebookService {
       order: [['created_at', 'DESC']],
     })
   }
+
+  /**
+   * Obtener todas las páginas de un usuario (sin importar el notebook)
+   */
+  async getAllUserPages(userId: number) {
+    return await Page.findAll({
+      include: [
+        {
+          model: Notebook,
+          as: 'notebook',
+          where: { user_id: userId, deleted: false },
+          attributes: ['id', 'title', 'created_at'],
+        },
+        {
+          model: Content,
+          as: 'contents',
+          required: false, // LEFT JOIN para incluir páginas sin contenido
+          attributes: ['id', 'type', 'data', 'x', 'y', 'width', 'height', 'created_at'],
+        },
+      ],
+      where: { deleted: false },
+      order: [
+        ['created_at', 'DESC'],
+        [{ model: Content, as: 'contents' }, 'created_at', 'ASC'],
+      ],
+    })
+  }
 }

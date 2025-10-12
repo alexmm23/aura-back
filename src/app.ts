@@ -16,6 +16,7 @@ import { forumRouter } from './routers/forum.router.js'
 import { reminderRouter } from './routers/reminder.router.js'
 import { chatRouter } from './routers/chat.router.js'
 import { auraAiRouter } from './routers/auraAi.router.js'
+import path from 'path'
 
 // Importar modelos con asociaciones configuradas
 import './models/index.js'
@@ -37,6 +38,19 @@ app.use(
     credentials: true,
   }),
 )
+
+// Middleware para servir archivos estáticos con encabezados CORS
+app.use(
+  '/storage',
+  (req, res, next) => {
+    res.header('Access-Control-Allow-Origin', CORS_ORIGIN)
+    res.header('Access-Control-Allow-Methods', 'GET')
+    res.header('Cross-Origin-Resource-Policy', 'cross-origin')
+    next()
+  },
+  express.static(path.join(process.cwd(), 'storage')),
+)
+
 app.use('/payment', paymentRouter)
 
 const routes = [
