@@ -1,6 +1,6 @@
 import express from 'express'
 import cookieParser from 'cookie-parser'
-import cron from 'node-cron' // ✅ AGREGAR ESTA LÍNEA
+// ❌ ELIMINADO: import cron from 'node-cron' - Ya no es necesario
 import { userRouter } from './routers/user.router.js'
 import { authRouter } from './routers/auth.router.js'
 import { googleAuthRouter } from './routers/googleAuth.router.js'
@@ -88,10 +88,10 @@ app.get('/health', (req, res) => {
   })
 })
 
-// Endpoint para el cron job de Railway
+// Endpoint para el cron job de Railway - EJECUTA CADA MINUTO
 app.post('/cron/check-reminders', async (req, res) => {
   try {
-    console.log('Railway cron job triggered: checking pending reminders...')
+    console.log('⏰ Railway cron job triggered: checking pending reminders...')
     await checkAndSendPendingReminders()
     res.status(200).json({
       success: true,
@@ -99,7 +99,7 @@ app.post('/cron/check-reminders', async (req, res) => {
       timestamp: new Date().toISOString(),
     })
   } catch (error: any) {
-    console.error('Error in Railway cron job:', error)
+    console.error('❌ Error in Railway cron job:', error)
     res.status(500).json({
       success: false,
       error: error.message,
@@ -108,20 +108,6 @@ app.post('/cron/check-reminders', async (req, res) => {
   }
 })
 
-// ==================== CRON JOB ACTIVO ====================
-
-// Schedule a task to run every 5 minutes
-cron.schedule('*/5 * * * *', async () => {
-  console.log(' Running cron job: checking pending reminders...')
-  try {
-    // Perform reminder checking and email sending
-    await checkAndSendPendingReminders()
-    console.log('Cron job completed successfully')
-  } catch (error: any) {
-    console.error('Error in cron job:', error)
-  }
-})
-
-console.log('✅ Cron job scheduled to run every 5 minutes')
+console.log('✅ App ready - Cron job endpoint available at POST /cron/check-reminders')
 
 export default app
