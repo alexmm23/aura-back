@@ -10,8 +10,7 @@ import stripe from 'stripe'
 
 const router = Router()
 
-// Asegúrate de configurar el router para recibir el webhook correctamente
-// IMPORTANTE: Este endpoint debe estar ANTES de cualquier middleware express.json()
+
 router.post('/webhook', 
   express.raw({ type: 'application/json' }), 
   async (req: Request, res: Response): Promise<void> => {
@@ -74,22 +73,40 @@ router.post('/webhook',
 // Función para manejar pagos exitosos
 async function handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
   try {
-    // Aquí puedes:
-    // 1. Buscar el usuario asociado con este pago (usando metadata del paymentIntent)
-    // 2. Actualizar su estado de suscripción en la base de datos
-    // 3. Enviar email de confirmación
-    
-    // Ejemplo:
+    // Verificar si existe userId en metadata
     if (paymentIntent.metadata?.userId) {
       const userId = paymentIntent.metadata.userId;
+      console.log(`🔄 Actualizando suscripción para usuario ${userId}...`);
       
-      // Actualizar usuario como premium
-      // await User.update({ isPremium: true, premiumUntil: ... }, { where: { id: userId } });
+      // Calcular fechas de inicio y fin de suscripción (1 mes de duración)
+      const subscriptionStart = new Date();
+      const subscriptionEnd = new Date();
+      subscriptionEnd.setMonth(subscriptionEnd.getMonth() + 1); // Añadir 1 mes
       
-      console.log(`Usuario ${userId} actualizado a premium por webhook`);
+      // Actualizar usuario con datos de suscripción
+      const updateResult = await User.update(
+        {
+          subscription_status: 'active',
+          subscription_type: 'premium', // O el tipo que corresponda
+          subscription_start: subscriptionStart,
+          subscription_end: subscriptionEnd
+        }, 
+        { 
+          where: { id: userId } 
+        }
+      );
+      
+      if (updateResult[0] > 0) {
+        console.log(`✅ Usuario ${userId} actualizado a premium correctamente`);
+        console.log(`📅 Suscripción activa desde ${subscriptionStart.toISOString()} hasta ${subscriptionEnd.toISOString()}`);
+      } else {
+        console.log(`⚠️ Usuario ${userId} no encontrado o no actualizado`);
+      }
+    } else {
+      console.log(`⚠️ No se encontró userId en los metadatos del pago ${paymentIntent.id}`);
     }
   } catch (error) {
-    console.error('Error al procesar pago exitoso:', error);
+    console.error('❌ Error al procesar pago exitoso:', error);
   }
 }
 
