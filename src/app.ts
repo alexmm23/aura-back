@@ -24,7 +24,7 @@ import { checkAndSendPendingReminders } from '@/services/reminder.service'
 
 const app = express()
 const { API_BASE_PATH, CORS_ORIGIN, PORT } = env
-//app.use('/api/payment', paymentRouter)
+app.use('/api/payment', paymentRouter)
 app.use('/payment', paymentRouter)
 
 app.use(express.json({ limit: '50mb' }))
@@ -39,6 +39,8 @@ app.use(
   }),
 )
 
+app.use('/payment', paymentRouter)
+
 // Middleware para servir archivos estáticos con encabezados CORS
 app.use(
   '/storage',
@@ -51,7 +53,7 @@ app.use(
   express.static(path.join(process.cwd(), 'storage')),
 )
 
-app.use('/payment', paymentRouter)
+
 
 const routes = [
   { path: `${API_BASE_PATH}/users`, router: userRouter },
