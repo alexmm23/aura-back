@@ -90,65 +90,36 @@ app.get('/health', (req, res) => {
     service: 'aura-backend',
   })
 })
-let isCheckingReminders = false
-let lastCheckTimestamp = 0
-
-async function executeReminderCheck(source: string) {
-  const now = Date.now()
-  const timeSinceLastCheck = now - lastCheckTimestamp
-
-  // Si ya se está ejecutando, saltar
-  if (isCheckingReminders) {
-    console.log(`⏭️ Skipping ${source} check - already running`)
-    return { skipped: true, reason: 'already_running' }
-  }
-
-  // Si se ejecutó hace menos de 30 segundos, saltar (evita duplicados)
-  if (timeSinceLastCheck < 30000) {
-    console.log(`⏭️ Skipping ${source} check - executed ${Math.round(timeSinceLastCheck / 1000)}s ago`)
-    return { skipped: true, reason: 'too_soon' }
-  }
-
-  // Ejecutar la verificación
-  isCheckingReminders = true
-  lastCheckTimestamp = now
-
-  try {
-    console.log(`⏰ [${source}] Running reminder check...`)
-    await checkAndSendPendingReminders()
-    console.log(`✅ [${source}] Reminder check completed successfully`)
-    return { success: true }
-  } catch (error: any) {
-    console.error(`❌ [${source}] Error in reminder check:`, error)
-    throw error
-  } finally {
-    isCheckingReminders = false
-  }
-}
 
 // Endpoint para cron externo (cron-job.org)
 app.post('/cron/check-reminders', async (req, res) => {
   try {
-    const result = await executeReminderCheck('EXTERNAL')
+    console.log('🕐 External cron triggered - calling internal webhook...')
     
-    if (result.skipped) {
-        res.status(200).json({
-          success: true,
-          skipped: true,
-          reason: result.reason,
-          message: 'Check skipped - already processed recently',
-          timestamp: new Date().toISOString(),
-      })
-      return
-    }
-
-    res.status(200).json({
-      success: true,
-      message: 'Pending reminders checked successfully',
-      timestamp: new Date().toISOString(),
+    // Llamar al webhook interno que ya funciona
+    const webhookResponse = await fetch(`${req.protocol}://${req.get('host')}/api/reminders/webhook/check-pending`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      }
     })
+
+    const webhookResult = await webhookResponse.json()
+    
+    if (webhookResponse.ok) {
+      console.log('✅ Internal webhook called successfully')
+      res.status(200).json({
+        success: true,
+        message: 'Webhook executed successfully',
+        webhook_result: webhookResult,
+        timestamp: new Date().toISOString(),
+      })
+    } else {
+      throw new Error(`Webhook failed: ${webhookResult.error}`)
+    }
+    
   } catch (error: any) {
-    console.error('❌ Error in external cron:', error)
+    console.error('❌ Error calling internal webhook:', error)
     res.status(500).json({
       success: false,
       error: error.message,
@@ -162,9 +133,11 @@ app.post('/cron/check-reminders', async (req, res) => {
 
 cron.schedule('* * * * *', async () => {
   try {
-    await executeReminderCheck('INTERNAL')
+    console.log('🕐 Internal cron triggered - executing reminder check...')
+    await checkAndSendPendingReminders() // ✅ Llamada directa
+    console.log('✅ Internal cron completed successfully')
   } catch (error: any) {
-    // Error ya logueado en executeReminderCheck
+    console.error('❌ Internal cron error:', error)
   }
 })
 
