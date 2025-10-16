@@ -14,6 +14,7 @@ import {
 import { createRequire } from 'module'
 import nodemailer from 'nodemailer'
 import env from '@/config/enviroment'
+import { Resend } from 'resend'
 
 const require = createRequire(import.meta.url)
 const { Op } = require('sequelize')
@@ -28,6 +29,8 @@ const emailTransporter = nodemailer.createTransport({
     pass: process.env.RESEND_API_KEY, // Usar directamente process.env
   },
 })
+
+const resend = new Resend(process.env.RESEND_API_KEY)
 
 // Agregar esta función para testing
 const testEmailConnection = async () => {
@@ -492,8 +495,8 @@ export const sendUpcomingRemindersNotification = async (
       </div>
     `
 
-    await emailTransporter.sendMail({
-      from: `"AURA Próximos" <noreply@${env.DOMAIN}>`,
+    await resend.emails.send({
+      from: `AURA Próximos <noreply@${env.DOMAIN}>`,
       to: user.email,
       subject: `⏰ Tienes ${upcomingReminders.length} recordatorio(s) próximo(s)`,
       html: emailContent,
