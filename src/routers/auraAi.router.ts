@@ -53,7 +53,7 @@ router.post(
               continue
             }
 
-            const imagePath = path.join(process.cwd(), content.data)
+            const imagePath = path.join(process.cwd(), 'storage', 'images', content.data)
 
             if (!fs.existsSync(imagePath)) {
               results.push({
