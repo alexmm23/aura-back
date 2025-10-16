@@ -389,12 +389,6 @@ export const sendReminderEmail = async (reminderId: number, userId: number): Pro
   try {
     console.log(`🔍 Attempting to send email for reminder ${reminderId}`)
 
-    // Test connection first
-    const connectionOK = await testEmailConnection()
-    if (!connectionOK) {
-      throw new Error('Email server connection failed')
-    }
-
     const reminder = await getReminderById(reminderId, userId)
 
     if (!reminder) {
@@ -425,7 +419,7 @@ export const sendReminderEmail = async (reminderId: number, userId: number): Pro
     `
 
     const mailOptions = {
-      from: `"AURA Recordatorios" <noreply@${process.env.DOMAIN}>`,
+      from: `AURA Recordatorios <noreply@${process.env.DOMAIN}>`,
       to: reminder.user.email,
       subject: `🔔 Recordatorio AURA: ${reminder.title}`,
       html: emailContent,
@@ -437,9 +431,9 @@ export const sendReminderEmail = async (reminderId: number, userId: number): Pro
       subject: mailOptions.subject,
     })
 
-    const result = await emailTransporter.sendMail(mailOptions)
-
-    console.log('✅ Email sent successfully:', result.messageId)
+    // Enviar con Resend
+    const result: any = await resend.emails.send(mailOptions)
+    console.log('✅ Email sent successfully:', result.id || 'no-id')
 
     // Marcar como enviado
     await markReminderAsSent(reminderId, userId)
@@ -447,12 +441,6 @@ export const sendReminderEmail = async (reminderId: number, userId: number): Pro
     return true
   } catch (error: any) {
     console.error('❌ Error sending reminder email:', error)
-    console.error('Error details:', {
-      message: error.message,
-      code: error.code,
-      response: error.response,
-      responseCode: error.responseCode,
-    })
     throw new Error('Error sending reminder email: ' + error.message)
   }
 }
