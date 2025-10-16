@@ -94,20 +94,40 @@ app.get('/health', (req, res) => {
 // Endpoint para cron externo (cron-job.org)
 app.post('/cron/check-reminders', async (req, res) => {
   try {
-    console.log('🕐 External cron triggered - calling webhook...')
+    console.log('🕐 External cron triggered - starting webhook...')
     
+    // ✅ Responder INMEDIATAMENTE a cron-job.org
+    res.status(200).json({
+      success: true,
+      message: 'Reminder check started in background',
+      timestamp: new Date().toISOString(),
+    })
+
+    // ✅ Procesar en background (sin await)
+    processRemindersBackground()
+    
+  } catch (error: any) {
+    console.error('❌ Error starting cron:', error)
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      timestamp: new Date().toISOString(),
+    })
+  }
+})
+
+// Función auxiliar para procesar en background
+async function processRemindersBackground() {
+  try {
     const startTime = Date.now()
     
     // Construir la URL del webhook
-    const baseUrl = req.get('host')?.includes('localhost') 
-      ? `http://${req.get('host')}`
-      : `https://${req.get('host')}`
+    const webhookUrl = process.env.RAILWAY_PUBLIC_DOMAIN 
+      ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}/api/reminders/webhook/send-upcoming`
+      : 'http://localhost:3000/api/reminders/webhook/send-upcoming'
     
-    const webhookUrl = `${baseUrl}/api/reminders/webhook/send-upcoming`
+    console.log('📞 Calling webhook in background:', webhookUrl)
     
-    console.log('📞 Calling webhook:', webhookUrl)
-    
-    // Llamar al webhook que ya funciona
     const webhookResponse = await fetch(webhookUrl, {
       method: 'POST',
       headers: {
@@ -119,27 +139,17 @@ app.post('/cron/check-reminders', async (req, res) => {
     const endTime = Date.now()
     
     if (webhookResponse.ok) {
-      console.log('✅ External cron completed successfully via webhook')
-      res.status(200).json({
-        success: true,
-        message: 'Webhook executed successfully',
-        webhook_result: webhookResult,
-        executionTime: `${endTime - startTime}ms`,
-        timestamp: new Date().toISOString(),
-      })
+      console.log('✅ Background webhook completed successfully')
+      console.log(`⏱️ Total execution time: ${endTime - startTime}ms`)
+      console.log('📊 Webhook result:', webhookResult)
     } else {
-      throw new Error(`Webhook failed: ${webhookResult.error || 'Unknown error'}`)
+      console.error('❌ Background webhook failed:', webhookResult)
     }
     
   } catch (error: any) {
-    console.error('❌ Error calling webhook:', error)
-    res.status(500).json({
-      success: false,
-      error: error.message,
-      timestamp: new Date().toISOString(),
-    })
+    console.error('❌ Error in background webhook:', error)
   }
-})
+}
 
 // ==================== CRON JOB INTERNO ====================
 // Ejecuta cada minuto para revisar recordatorios pendientes
