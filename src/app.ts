@@ -94,10 +94,21 @@ app.get('/health', (req, res) => {
 // Endpoint para cron externo (cron-job.org)
 app.post('/cron/check-reminders', async (req, res) => {
   try {
-    console.log('🕐 External cron triggered - calling internal webhook...')
+    console.log('🕐 External cron triggered - calling webhook...')
     
-    // Llamar al webhook interno que ya funciona
-    const webhookResponse = await fetch(`${req.protocol}://${req.get('host')}/api/reminders/webhook/check-pending`, {
+    const startTime = Date.now()
+    
+    // Construir la URL del webhook
+    const baseUrl = req.get('host')?.includes('localhost') 
+      ? `http://${req.get('host')}`
+      : `https://${req.get('host')}`
+    
+    const webhookUrl = `${baseUrl}/api/reminders/webhook/send-upcoming`
+    
+    console.log('📞 Calling webhook:', webhookUrl)
+    
+    // Llamar al webhook que ya funciona
+    const webhookResponse = await fetch(webhookUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -105,21 +116,23 @@ app.post('/cron/check-reminders', async (req, res) => {
     })
 
     const webhookResult = await webhookResponse.json()
+    const endTime = Date.now()
     
     if (webhookResponse.ok) {
-      console.log('✅ Internal webhook called successfully')
+      console.log('✅ External cron completed successfully via webhook')
       res.status(200).json({
         success: true,
         message: 'Webhook executed successfully',
         webhook_result: webhookResult,
+        executionTime: `${endTime - startTime}ms`,
         timestamp: new Date().toISOString(),
       })
     } else {
-      throw new Error(`Webhook failed: ${webhookResult.error}`)
+      throw new Error(`Webhook failed: ${webhookResult.error || 'Unknown error'}`)
     }
     
   } catch (error: any) {
-    console.error('❌ Error calling internal webhook:', error)
+    console.error('❌ Error calling webhook:', error)
     res.status(500).json({
       success: false,
       error: error.message,
@@ -133,11 +146,25 @@ app.post('/cron/check-reminders', async (req, res) => {
 
 cron.schedule('* * * * *', async () => {
   try {
-    console.log('🕐 Internal cron triggered - executing reminder check...')
-    await checkAndSendPendingReminders() // ✅ Llamada directa
-    console.log('✅ Internal cron completed successfully')
+    console.log('🕐 Internal cron triggered - calling webhook...')
+    
+    const webhookUrl = 'http://localhost:3000/api/reminders/webhook/send-upcoming'
+    
+    const response = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      }
+    })
+
+    if (response.ok) {
+      console.log('✅ Internal cron completed successfully via webhook')
+    } else {
+      throw new Error(`Webhook failed: ${response.status}`)
+    }
+    
   } catch (error: any) {
-    console.error('❌ Internal cron error:', error)
+    console.error('❌ Internal cron webhook error:', error)
   }
 })
 
