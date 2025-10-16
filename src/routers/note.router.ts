@@ -43,7 +43,7 @@ router.get('/images/:filename', (req, res) => {
     }
 
     const imagePath = path.join(__dirname, '../../storage/images', filename)
-
+    console.log('Serving image from path:', imagePath)
     // Enviar archivo con headers apropiados
     res.sendFile(imagePath, (err) => {
       if (err) {
