@@ -424,8 +424,6 @@ authRouter.post(
 
       // Limpiar cookies
       clearAuthCookies(res)
-      // console.log('Cookies before clearing:', req.cookies)
-      console.log('Cookies after clearing:', res.getHeader('Set-Cookie'))
       res.status(200).json({
         message: 'Logout successful',
       })
