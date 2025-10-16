@@ -43,7 +43,7 @@ router.post(
       if (content_ids && Array.isArray(content_ids)) {
         for (const contentId of content_ids) {
           try {
-            const content: typeof Content = await Content.findByPk(contentId)
+            const content: typeof Content = await Content.findByPk(contentId + 1)
 
             if (!content) {
               results.push({
@@ -66,6 +66,9 @@ router.post(
             }
 
             const ocrResult = await processImageOCR(imagePath)
+            console.log(
+              `OCR resultado para content_id ${contentId}:`, ocrResult
+            )
 
             results.push({
               content_id: contentId,
@@ -110,6 +113,7 @@ router.post(
             }
 
             const ocrResult = await processImageOCR(imagePath)
+            console.log(`OCR resultado para page_id ${pageId}:`, ocrResult)
 
             results.push({
               page_id: pageId,

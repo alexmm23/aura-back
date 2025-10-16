@@ -16,6 +16,7 @@ export const processImageOCR = async (imagePath: string): Promise<any> => {
       if (!fs.existsSync(imagePath)) {
         throw new Error(`Archivo no encontrado: ${imagePath}`)
       }
+      console.log('Procesando imagen para OCR:', imagePath)
 
       const form = new FormData()
       form.append('file', fs.createReadStream(imagePath))
