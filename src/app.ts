@@ -121,10 +121,10 @@ async function processRemindersBackground() {
   try {
     const startTime = Date.now()
     
-    // Construir la URL del webhook
+    // ✅ CAMBIAR A check-pending en lugar de send-upcoming
     const webhookUrl = process.env.RAILWAY_PUBLIC_DOMAIN 
-      ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}/api/reminders/webhook/send-upcoming`
-      : 'http://localhost:3000/api/reminders/webhook/send-upcoming'
+      ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}/api/reminders/webhook/check-pending`
+      : 'http://localhost:3000/api/reminders/webhook/check-pending'
     
     console.log('📞 Calling webhook in background:', webhookUrl)
     
