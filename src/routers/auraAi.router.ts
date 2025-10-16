@@ -43,8 +43,7 @@ router.post(
       if (content_ids && Array.isArray(content_ids)) {
         for (const contentId of content_ids) {
           try {
-            const content: typeof Content = await Content.findByPk(contentId + 1)
-
+            const content: typeof Content = await Content.findByPk(contentId)
             if (!content) {
               results.push({
                 content_id: contentId,
