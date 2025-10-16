@@ -53,8 +53,8 @@ router.post(
               continue
             }
 
-            const imagePath = path.join(process.cwd(), 'storage', 'images', content.data)
-
+            const imagePath = path.join(process.cwd(), content.data)
+            console.log('Procesando imagen en ruta:', imagePath)
             if (!fs.existsSync(imagePath)) {
               results.push({
                 content_id: contentId,
