@@ -90,65 +90,24 @@ app.get('/health', (req, res) => {
     service: 'aura-backend',
   })
 })
-let isCheckingReminders = false
-let lastCheckTimestamp = 0
-
-async function executeReminderCheck(source: string) {
-  const now = Date.now()
-  const timeSinceLastCheck = now - lastCheckTimestamp
-
-  // Si ya se está ejecutando, saltar
-  if (isCheckingReminders) {
-    console.log(`⏭️ Skipping ${source} check - already running`)
-    return { skipped: true, reason: 'already_running' }
-  }
-
-  // Si se ejecutó hace menos de 30 segundos, saltar (evita duplicados)
-  if (timeSinceLastCheck < 30000) {
-    console.log(`⏭️ Skipping ${source} check - executed ${Math.round(timeSinceLastCheck / 1000)}s ago`)
-    return { skipped: true, reason: 'too_soon' }
-  }
-
-  // Ejecutar la verificación
-  isCheckingReminders = true
-  lastCheckTimestamp = now
-
-  try {
-    console.log(`⏰ [${source}] Running reminder check...`)
-    await checkAndSendPendingReminders()
-    console.log(`✅ [${source}] Reminder check completed successfully`)
-    return { success: true }
-  } catch (error: any) {
-    console.error(`❌ [${source}] Error in reminder check:`, error)
-    throw error
-  } finally {
-    isCheckingReminders = false
-  }
-}
 
 // Endpoint para cron externo (cron-job.org)
 app.post('/cron/check-reminders', async (req, res) => {
   try {
-    const result = await executeReminderCheck('EXTERNAL')
+    console.log('🕐 External cron triggered - starting webhook...')
     
-    if (result.skipped) {
-        res.status(200).json({
-          success: true,
-          skipped: true,
-          reason: result.reason,
-          message: 'Check skipped - already processed recently',
-          timestamp: new Date().toISOString(),
-      })
-      return
-    }
-
+    // ✅ Responder INMEDIATAMENTE a cron-job.org
     res.status(200).json({
       success: true,
-      message: 'Pending reminders checked successfully',
+      message: 'Reminder check started in background',
       timestamp: new Date().toISOString(),
     })
+
+    // ✅ Procesar en background (sin await)
+    processRemindersBackground()
+    
   } catch (error: any) {
-    console.error('❌ Error in external cron:', error)
+    console.error('❌ Error starting cron:', error)
     res.status(500).json({
       success: false,
       error: error.message,
@@ -157,14 +116,65 @@ app.post('/cron/check-reminders', async (req, res) => {
   }
 })
 
+// Función auxiliar para procesar en background
+async function processRemindersBackground() {
+  try {
+    const startTime = Date.now()
+    
+    // ✅ CAMBIAR A check-pending en lugar de send-upcoming
+    const webhookUrl = process.env.RAILWAY_PUBLIC_DOMAIN 
+      ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}/api/reminders/webhook/check-pending`
+      : 'http://localhost:3000/api/reminders/webhook/check-pending'
+    
+    console.log('📞 Calling webhook in background:', webhookUrl)
+    
+    const webhookResponse = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      }
+    })
+
+    const webhookResult = await webhookResponse.json()
+    const endTime = Date.now()
+    
+    if (webhookResponse.ok) {
+      console.log('✅ Background webhook completed successfully')
+      console.log(`⏱️ Total execution time: ${endTime - startTime}ms`)
+      console.log('📊 Webhook result:', webhookResult)
+    } else {
+      console.error('❌ Background webhook failed:', webhookResult)
+    }
+    
+  } catch (error: any) {
+    console.error('❌ Error in background webhook:', error)
+  }
+}
+
 // ==================== CRON JOB INTERNO ====================
 // Ejecuta cada minuto para revisar recordatorios pendientes
 
 cron.schedule('* * * * *', async () => {
   try {
-    await executeReminderCheck('INTERNAL')
+    console.log('🕐 Internal cron triggered - calling webhook...')
+    
+    const webhookUrl = 'http://localhost:3000/api/reminders/webhook/send-upcoming'
+    
+    const response = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      }
+    })
+
+    if (response.ok) {
+      console.log('✅ Internal cron completed successfully via webhook')
+    } else {
+      throw new Error(`Webhook failed: ${response.status}`)
+    }
+    
   } catch (error: any) {
-    // Error ya logueado en executeReminderCheck
+    console.error('❌ Internal cron webhook error:', error)
   }
 })
 
