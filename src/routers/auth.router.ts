@@ -27,20 +27,26 @@ const authRouter = Router()
 authRouter.post('/login', async (req: Request, res: Response) => {
   try {
     const loginData: UserLoginAttributes = req.body
+    console.log('Login mobile request:', req.body)
     if (!loginData.email || !loginData.password) {
       res.status(400).json({ error: 'Email and password are required' })
       return
     }
 
+    console.log('Attempting login for email:', loginData.email)
     const userAgent = req.headers['user-agent'] || 'Unknown'
+    console.log('User agent:', userAgent)
     const { token, refreshToken } = await loginUser(loginData, 'mobile', userAgent)
+    console.log('Login successful, generating response tokens')
     const user = await User.findOne({
       where: { email: loginData.email },
       attributes: { id: true },
     })
 
+    console.log('User found:', user)
     res.status(200).json({ message: 'Login successful', token, refreshToken, userId: user?.id })
   } catch (error: any) {
+    console.error('Login error:', error)
     res.status(401).json({ error: error.message })
   }
 })
