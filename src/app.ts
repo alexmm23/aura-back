@@ -20,10 +20,16 @@ import path from 'path'
 
 // Importar modelos con asociaciones configuradas
 import './models/index.js'
-import { checkAndSendPendingReminders } from '@/services/reminder.service'
 
 const app = express()
 const { API_BASE_PATH, CORS_ORIGIN, PORT } = env
+const allowedOrigins = [
+  'https://my.aurapp.com.mx',
+  'null', // para apps móviles
+  'exp://127.0.0.1:19000', // para Expo Go en desarrollo
+  'http://localhost:8081', // para pruebas locales web
+];
+
 app.use('/api/payment', paymentRouter)
 app.use('/payment', paymentRouter)
 
@@ -32,7 +38,16 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }))
 app.use(cookieParser())
 app.use(
   cors({
-    origin: CORS_ORIGIN,
+    origin: (origin, callback) => {
+      // Permitir requests sin origin (apps móviles, Postman, etc.)
+      if (!origin) return callback(null, true);
+      
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      } else {
+        return callback(new Error('No permitido por CORS'));
+      }
+    },
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,
