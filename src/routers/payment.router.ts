@@ -11,6 +11,77 @@ import stripe from 'stripe'
 const router = Router()
 
 
+// GET /payments/subscription-status - Verificar estado de suscripción del usuario
+router.get('/subscription-status', authenticateToken, async (req: Request & { user?: UserAttributes }, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.id
+
+    if (!userId) {
+      res.status(401).json({ 
+        success: false,
+        error: 'User not authenticated' 
+      })
+      return
+    }
+
+    // Buscar usuario con datos de suscripción
+    const user = await User.findByPk(userId, {
+      attributes: [
+        'id', 
+        'email', 
+        'name', 
+        'lastname',
+        'subscription_status',
+        'subscription_type', 
+        'subscription_start',
+        'subscription_end'
+      ]
+    })
+
+    if (!user) {
+      res.status(404).json({ 
+        success: false,
+        error: 'User not found' 
+      })
+      return
+    }
+
+    const subscriptionStatus = user.getDataValue('subscription_status')
+    const subscriptionEnd = user.getDataValue('subscription_end')
+    const now = new Date()
+
+    // Verificar si la suscripción está activa y no ha expirado
+    const hasActiveSubscription = subscriptionStatus === 'active' && 
+                                 subscriptionEnd && 
+                                 new Date(subscriptionEnd) > now
+
+    res.json({
+      success: true,
+      hasActiveSubscription,
+      subscriptionData: {
+        status: subscriptionStatus,
+        type: user.getDataValue('subscription_type'),
+        startDate: user.getDataValue('subscription_start'),
+        endDate: subscriptionEnd,
+        isExpired: subscriptionEnd ? new Date(subscriptionEnd) <= now : false,
+        daysRemaining: subscriptionEnd ? Math.ceil((new Date(subscriptionEnd).getTime() - now.getTime()) / (1000 * 60 * 60 * 24)) : 0
+      },
+      userData: {
+        name: user.getDataValue('name'),
+        lastname: user.getDataValue('lastname'),
+        email: user.getDataValue('email')
+      }
+    })
+
+  } catch (error: any) {
+    console.error('❌ Error checking subscription status:', error)
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    })
+  }
+})
+
 router.post('/webhook', 
   express.raw({ type: 'application/json' }), 
   async (req: Request, res: Response): Promise<void> => {
@@ -126,8 +197,46 @@ router.post('/confirm', authenticateToken, async (req: Request & { user?: UserAt
       return
     }
 
+    
+    const user = await User.findByPk(userId, {
+      attributes: ['id', 'email', 'name', 'lastname', 'subscription_status', 'subscription_end']
+    })
+
+    if (!user) {
+      res.status(404).json({ 
+        success: false,
+        error: 'User not found' 
+      })
+      return
+    }
+
+    const subscriptionStatus = user.getDataValue('subscription_status')
+    const subscriptionEnd = user.getDataValue('subscription_end')
+    const now = new Date()
+
+    // Verificar si ya tiene una suscripción activa
+    const hasActiveSubscription = subscriptionStatus === 'active' && 
+                                 subscriptionEnd && 
+                                 new Date(subscriptionEnd) > now
+
+    if (hasActiveSubscription) {
+      res.status(409).json({ // 409 Conflict
+        success: false,
+        error: 'User already has an active subscription',
+        message: 'Ya tienes una membresía activa. No puedes realizar otro pago.',
+        subscriptionData: {
+          status: subscriptionStatus,
+          endDate: subscriptionEnd,
+          daysRemaining: Math.ceil((new Date(subscriptionEnd).getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+        }
+      })
+      return
+    }
+
     // Usar el email del formulario si está disponible, sino el del usuario
-    let emailToUse = billingEmail;
+    let emailToUse = billingEmail || user.getDataValue('email')
+
+    console.log(`💳 Processing payment for email: ${emailToUse}`)
     
     if (!emailToUse) {
       // Solo si no viene email del formulario, obtener del usuario
