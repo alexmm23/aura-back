@@ -37,6 +37,37 @@ export const registerUser = async (userData: UserCreationAttributes): Promise<Us
     if (existingUser) {
       throw new Error('El correo electrónico que intenta usar ya fue registrado.')
     }
+
+    // Manejar caso cuando el email exista pero esté marcado como eliminado
+    const deletedUser = await User.findOne({
+      where: {
+        email: userData.email,
+        deleted: true,
+      },
+    })
+
+    if (deletedUser) {
+      // Restaurar usuario eliminado con nueva información
+      const hashedPassword = await hashPassword(userData.password)
+      if (!hashedPassword) {
+        throw new Error('Error al hashear la contraseña')
+      }
+
+      await deletedUser.update({
+        name: userData.name,
+        lastname: userData.lastname,
+        password: hashedPassword,
+        role_id: userData.role_id,
+        deleted: false,
+        subscription_status: 'none',
+        subscription_type: 'free',
+        subscription_start: null,
+        subscription_end: null,
+      })
+
+      return deletedUser.toJSON() as UserAttributes
+    }
+
     // Create a new user
     // Hash the password before saving
     const hashedPassword = await hashPassword(userData.password)
