@@ -30,8 +30,8 @@ const allowedOrigins = [
   'http://localhost:8081', // para pruebas locales web
 ];
 
-app.use('/api/payment', paymentRouter)
-app.use('/payment', paymentRouter)
+app.use('/api/payment/webhook', express.raw({ type: 'application/json' }))
+app.use('/payment/webhook', express.raw({ type: 'application/json' }))
 
 app.use(express.json({ limit: '50mb' }))
 app.use(express.urlencoded({ extended: true, limit: '50mb' }))
@@ -54,7 +54,7 @@ app.use(
   }),
 )
 
-app.use('/payment', paymentRouter)
+
 
 // Middleware para servir archivos estáticos con encabezados CORS
 app.use(
@@ -80,6 +80,7 @@ const routes = [
   { path: `${API_BASE_PATH}/notebook`, router: notebookRouter },
   { path: `${API_BASE_PATH}/note`, router: noteRouter },
   { path: `${API_BASE_PATH}/payments`, router: paymentRouter },
+  { path: `${API_BASE_PATH}/payment`, router: paymentRouter },
   { path: `${API_BASE_PATH}/forums`, router: forumRouter },
   { path: `${API_BASE_PATH}/reminders`, router: reminderRouter },
   { path: `${API_BASE_PATH}/chats`, router: chatRouter },
