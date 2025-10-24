@@ -1097,7 +1097,7 @@ studentRouter.get('/courses/list', async (req, res) => {
     })
 
     if (!googleAccount || !googleAccount.access_token) {
-      res.status(401).json({ error: 'No Google account linked' })
+      res.status(406).json({ error: 'No Google account linked' })
       return
     }
 
