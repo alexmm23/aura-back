@@ -19,30 +19,7 @@ import { Resend } from 'resend'
 const require = createRequire(import.meta.url)
 const { Op } = require('sequelize')
 
-// Configurar el transportador de email
-const emailTransporter = nodemailer.createTransport({
-  host: 'smtp.resend.com',
-  port: 587,
-  secure: false, // true para 465, false para otros puertos
-  auth: {
-    user: 'resend',
-    pass: process.env.RESEND_API_KEY, // Usar directamente process.env
-  },
-})
-
 const resend = new Resend(process.env.RESEND_API_KEY)
-
-// Agregar esta función para testing
-const testEmailConnection = async () => {
-  try {
-    await emailTransporter.verify()
-    console.log('✅ Email server connection successful')
-    return true
-  } catch (error) {
-    console.error('❌ Email server connection failed:', error)
-    return false
-  }
-}
 
 // ==================== REMINDER SERVICES ====================
 
@@ -406,14 +383,17 @@ export const sendReminderEmail = async (reminderId: number, userId: number): Pro
     console.log(`📧 Sending email to: ${reminder.user.email}`)
     console.log(`📝 Subject: Recordatorio AURA: ${reminder.title}`)
 
+    const reminderDateTime = new Date(reminder.date_time)
+    const adjustedDateTime = new Date(reminderDateTime.getTime() + 6 * 60 * 60 * 1000)
+
     const emailContent = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2 style="color: #A44076;">🔔 ¡Recordatorio de AURA!</h2>
         <p>Hola ${reminder.user.name},</p>
         <h3>${reminder.title}</h3>
         ${reminder.description ? `<p>${reminder.description}</p>` : ''}
-        <p><strong>Fecha:</strong> ${new Date(reminder.date_time).toLocaleDateString('es-ES')}</p>
-        <p><strong>Hora:</strong> ${new Date(reminder.date_time).toLocaleTimeString('es-ES')}</p>
+        <p><strong>Fecha:</strong> ${adjustedDateTime.toLocaleDateString('es-ES')}</p>
+        <p><strong>Hora:</strong> ${adjustedDateTime.toLocaleTimeString('es-ES')}</p>
         <p>Saludos,<br>Equipo AURA</p>
       </div>
     `
@@ -531,12 +511,6 @@ export const sendPaymentConfirmationEmail = async (
   try {
     console.log(`📧 Sending payment confirmation to: ${email}`)
 
-    // Usar la misma función de test que ya funciona
-    const connectionOK = await testEmailConnection()
-    if (!connectionOK) {
-      throw new Error('Email server connection failed')
-    }
-
     const paymentDate = new Date(paymentData.date).toLocaleDateString('es-ES', {
       weekday: 'long',
       year: 'numeric',
@@ -624,23 +598,15 @@ export const sendPaymentConfirmationEmail = async (
       </div>
     `
 
-    // Usar el MISMO emailTransporter que ya funciona
-    const mailOptions = {
-      from: `"AURA Pagos" <noreply@${process.env.DOMAIN}>`,
+    // ✅ USAR RESEND (igual que sendReminderEmail)
+    const result: any = await resend.emails.send({
+      from: `AURA Pagos <noreply@${process.env.DOMAIN}>`,
       to: email,
       subject: '🎉 ¡Pago confirmado! Bienvenido a AURA Premium',
       html: emailContent,
-    }
-
-    console.log('📤 Sending payment email with options:', {
-      from: mailOptions.from,
-      to: mailOptions.to,
-      subject: mailOptions.subject,
     })
 
-    const result = await emailTransporter.sendMail(mailOptions)
-
-    console.log('✅ Payment confirmation email sent successfully:', result.messageId)
+    console.log('✅ Payment confirmation email sent successfully:', result.id || 'no-id')
 
     return true
   } catch (error: any) {
@@ -648,8 +614,6 @@ export const sendPaymentConfirmationEmail = async (
     console.error('Error details:', {
       message: error.message,
       code: error.code,
-      response: error.response,
-      responseCode: error.responseCode,
     })
     throw new Error('Error sending payment confirmation email: ' + error.message)
   }
