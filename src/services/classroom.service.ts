@@ -56,7 +56,7 @@ export const testClassroomConnection = async (accessToken: string) => {
 }
 
 export const getClassroomAssignments = async (accessToken: string) => {
-  console.log('Creating OAuth2 client for Classroom API...')
+  // console.log('Creating OAuth2 client for Classroom API...')
 
   if (!accessToken) {
     throw new Error('Access token is required')
@@ -74,10 +74,10 @@ export const getClassroomAssignments = async (accessToken: string) => {
     })
 
     const courses = response.data.courses || []
-    console.log(`Found ${courses.length} active courses`)
+    // console.log(`Found ${courses.length} active courses`)
 
     if (courses.length === 0) {
-      console.log('No active courses found')
+      // console.log('No active courses found')
       return []
     }
 
@@ -89,7 +89,7 @@ export const getClassroomAssignments = async (accessToken: string) => {
         return []
       }
 
-      console.log(`Fetching courseWork for course: ${name} (${courseId})`)
+      // console.log(`Fetching courseWork for course: ${name} (${courseId})`)
 
       try {
         const courseWorkResponse = await classroom.courses.courseWork.list({
@@ -97,7 +97,7 @@ export const getClassroomAssignments = async (accessToken: string) => {
           pageSize: 10,
         })
         const courseWork = courseWorkResponse.data.courseWork || []
-        console.log(`Found ${courseWork.length} courseWork items for course ${name}`)
+        // console.log(`Found ${courseWork.length} courseWork items for course ${name}`)
 
         // Parallelize fetching submissions for all courseWork
         const assignments = await Promise.all(
@@ -143,7 +143,29 @@ export const getClassroomAssignments = async (accessToken: string) => {
             }
           }),
         )
-        return assignments.filter(Boolean)
+        // Sort assignments by due date (most recent first) and take only first 5
+        const filteredAssignments = assignments.filter(Boolean)
+        const sortedAssignments = filteredAssignments
+          .sort((a, b) => {
+            // Type guard: ensure both a and b are not null
+            if (!a || !b) return 0
+            if (!a.dueDate && !b.dueDate) return 0
+            if (!a.dueDate) return 1
+            if (!b.dueDate) return -1
+            
+            // Ensure all date components exist before creating Date objects
+            if (!a.dueDate.year || !a.dueDate.month || !a.dueDate.day) return 1
+            if (!b.dueDate.year || !b.dueDate.month || !b.dueDate.day) return -1
+            
+            const dateA = new Date(a.dueDate.year, a.dueDate.month - 1, a.dueDate.day)
+            const dateB = new Date(b.dueDate.year, b.dueDate.month - 1, b.dueDate.day)
+            
+            return dateB.getTime() - dateA.getTime()
+          })
+          .slice(0, 5)
+
+        // console.log(`Returning top 5 assignments (sorted by due date) for course ${name}`)
+        return sortedAssignments
       } catch (courseWorkError: any) {
         console.error(`Error fetching courseWork for course ${courseId}:`, courseWorkError.message)
         return []
