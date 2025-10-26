@@ -41,11 +41,11 @@ export async function getNotesByUserId(userId: number) {
       include: [
         {
           model: Page,
-          as: 'pages', // Usar el alias definido en la asociación
+          as: 'pages',
           include: [
             {
               model: Content,
-              as: 'contents', // Usar el alias definido en la asociación
+              as: 'contents',
             },
           ],
         },
@@ -56,12 +56,31 @@ export async function getNotesByUserId(userId: number) {
       throw new Error('No notebooks found')
     }
 
-    // Extract all contents from all pages in all notebooks
     const contents = notebooks.flatMap(
-      (notebook: any) => notebook.Pages?.flatMap((page: any) => page.Content || []) || [],
+      (notebook: any) => notebook.pages?.flatMap((page: any) => page.contents || []) || [],
     )
 
-    return contents
+    // Sort by updated_at and take only the 5 most recent
+    const sortedContents = contents
+      .sort((a: any, b: any) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
+      .slice(0, 5)
+
+    // Transform image data to include full URL
+    const contentsWithFullUrl = sortedContents.map((content: any) => {
+      if (content.type === 'image' && content.data) {
+        const baseUrl = process.env.NODE_ENV === 'production' 
+          ? 'https://back.aurapp.com.mx' 
+          : 'http://localhost:3000'
+        
+        return {
+          ...content.toJSON(),
+          data: `${baseUrl}/${content.data}`
+        }
+      }
+      return content
+    })
+
+    return contentsWithFullUrl
   } catch (error) {
     console.error('Error fetching notes:', error)
     throw error
