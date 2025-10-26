@@ -110,11 +110,11 @@ export const getClassroomAssignments = async (accessToken: string) => {
                   userId: 'me',
                 })
               const submissions = submissionsResponse.data.studentSubmissions || []
-              console.log(
-                'Submissions for courseWork:',
-                work.id,
-                submissions.map((s) => ({ id: s.id, state: s.state })),
-              )
+              // console.log(
+              //   'Submissions for courseWork:',
+              //   work.id,
+              //   submissions.map((s) => ({ id: s.id, state: s.state })),
+              // )
 
               // Find the submission that is not turned in (CREATED or NEW state)
               const pendingSubmission = submissions.find(
