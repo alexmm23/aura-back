@@ -33,7 +33,16 @@ const allowedOrigins = [
 app.use('/api/payment/webhook', express.raw({ type: 'application/json' }))
 app.use('/payment/webhook', express.raw({ type: 'application/json' }))
 
-app.use(express.json({ limit: '50mb' }))
+app.use(express.json({ 
+  limit: '50mb',
+  verify: (req, res, buf, encoding) => {
+    if (buf.length > 50 * 1024 * 1024) { // 50MB en bytes
+      const error = new Error('Request entity too large');
+      (error as any).status = 413;
+      throw error;
+    }
+  }
+}))
 app.use(express.urlencoded({ extended: true, limit: '50mb' }))
 app.use(cookieParser())
 app.use(

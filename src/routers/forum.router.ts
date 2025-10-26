@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express'
 import { authenticateToken } from '@/middlewares/auth.middleware'
 import { UserAttributes } from '@/types/user.types'
+import env from '@/config/enviroment'
 import {
   getAllForums,
   getForumById,
@@ -521,12 +522,31 @@ forumRouter.post(
       }
 
       const newComment = await createComment(commentData, user.id!)
+
+      // Determinar la URL base según el entorno
+      const baseUrl =
+        env.NODE_ENV === 'development' ? 'http://localhost:3000' : 'https://back.aurapp.com.mx'
+
+      // Agregar URL completa a los attachments
+      if (newComment.attachments && newComment.attachments.length > 0) {
+        newComment.attachments = newComment.attachments.map((attachment: any) => {
+          if (attachment.file_type !== 'link' && !attachment.file_url.startsWith('http')) {
+            return {
+              ...attachment,
+              file_url: `${baseUrl}${attachment.file_url}`,
+            }
+          }
+          return attachment
+        })
+      }
+
       res.status(201).json({
         success: true,
         data: newComment,
         message: 'Comment created successfully',
       })
     } catch (error: any) {
+      console.error('Error creating comment:', error)
       res.status(500).json({
         success: false,
         error: error.message,

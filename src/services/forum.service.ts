@@ -22,9 +22,15 @@ import {
   ForumCommentWithDetails,
 } from '../types/forum.types.js'
 import { createRequire } from 'module'
+import fs from 'fs'
+import path from 'path'
+import { fileURLToPath } from 'url'
 
 const require = createRequire(import.meta.url)
 const { Op } = require('sequelize')
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 
 // ==================== FORUM SERVICES ====================
 
@@ -535,20 +541,80 @@ export const createComment = async (
       parent_comment_id: commentData.parent_comment_id || null,
     })
 
-    // Crear attachments si existen
+    // Procesar archivos adjuntos si existen
     if (commentData.attachments && commentData.attachments.length > 0) {
-      await Promise.all(
-        commentData.attachments.map((attachment) =>
-          ForumAttachment.create({
+      const storageDir = path.join(process.cwd(), 'storage', 'images')
+
+      // Crear directorio si no existe
+      if (!fs.existsSync(storageDir)) {
+        fs.mkdirSync(storageDir, { recursive: true })
+      }
+
+      const attachmentPromises = commentData.attachments.map(async (attachment) => {
+        try {
+          // Generar nombre único para el archivo
+          const timestamp = Date.now()
+          const randomString = Math.random().toString(36).substring(2, 15)
+          const extension = attachment.name.split('.').pop() || 'png'
+          const fileName = `forum_comment_${newComment.getDataValue('id')}_${timestamp}_${randomString}.${extension}`
+          const filePath = path.join(storageDir, fileName)
+
+          // Convertir base64 a buffer y guardar
+          const base64Data = attachment.data.replace(/^data:.*?;base64,/, '')
+          const buffer = Buffer.from(base64Data, 'base64')
+          fs.writeFileSync(filePath, buffer)
+
+          // Determinar tipo de archivo
+          let fileType: 'image' | 'document' | 'video' | 'link' | 'other' = 'other'
+          if (attachment.type.startsWith('image/')) {
+            fileType = 'image'
+          } else if (attachment.type.startsWith('video/')) {
+            fileType = 'video'
+          } else if (
+            attachment.type.includes('pdf') ||
+            attachment.type.includes('document') ||
+            attachment.type.includes('word') ||
+            attachment.type.includes('excel') ||
+            attachment.type.includes('powerpoint')
+          ) {
+            fileType = 'document'
+          }
+
+          // Calcular tamaño del archivo
+          const fileSize = buffer.length
+
+          // Crear registro en la base de datos
+          return ForumAttachment.create({
             comment_id: newComment.getDataValue('id'),
             user_id: userId,
-            file_name: attachment.file_name,
-            file_url: attachment.file_url,
-            file_type: attachment.file_type,
-            file_size: attachment.file_size,
-          }),
-        ),
+            file_name: attachment.name,
+            file_url: `/storage/images/${fileName}`,
+            file_type: fileType,
+            file_size: fileSize,
+          })
+        } catch (error) {
+          console.error('Error saving attachment:', error)
+          throw error
+        }
+      })
+
+      await Promise.all(attachmentPromises)
+    }
+
+    // Procesar links si existen
+    if (commentData.links && commentData.links.length > 0) {
+      const linkPromises = commentData.links.map((linkUrl) =>
+        ForumAttachment.create({
+          comment_id: newComment.getDataValue('id'),
+          user_id: userId,
+          file_name: 'Link',
+          file_url: linkUrl,
+          file_type: 'link',
+          file_size: 0,
+        }),
       )
+
+      await Promise.all(linkPromises)
     }
 
     // Obtener el comentario completo con relaciones

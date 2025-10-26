@@ -129,11 +129,11 @@ export interface CreateCommentRequest {
   post_id: number
   content: string
   parent_comment_id?: number
+  links?: string[]
   attachments?: {
-    file_name: string
-    file_url: string
-    file_type: 'image' | 'document' | 'video' | 'link' | 'other'
-    file_size?: number
+    name: string
+    type: string
+    data: string // base64
   }[]
 }
 
