@@ -473,7 +473,7 @@ export const sendReminderEmail = async (reminderId: number, userId: number): Pro
     console.log('✅ Email sent successfully:', result.id || 'no-id')
 
     // Marcar como enviado
-    //await markReminderAsSent(reminderId, userId)
+    await markReminderAsSent(reminderId, userId)
 
     return true
   } catch (error: any) {
