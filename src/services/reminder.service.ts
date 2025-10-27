@@ -403,19 +403,21 @@ export const sendReminderEmail = async (reminderId: number, userId: number): Pro
     console.log(`📝 Subject: Recordatorio AURA: ${reminder.title}`)
 
     const reminderDateTime = new Date(reminder.date_time)
-    const adjustedDateTime = new Date(reminderDateTime.getTime() + 6 * 60 * 60 * 1000)
+    const adjustedDateTime = new Date(reminderDateTime.getTime())
 
-    /*const formattedDate = adjustedDateTime.toLocaleDateString('es-ES', {
-      weekday: 'long',
-      year: 'numeric',
+    const formattedDate = reminderDateTime.toLocaleDateString('es-MX', {
+      timeZone: 'America/Mexico_City',
+      day: '2-digit',
       month: 'long',
-      day: 'numeric',
-    });
-
-    const formattedTime = adjustedDateTime.toLocaleTimeString('es-ES', {
+      year: 'numeric',
+    })
+    const formattedTime = reminderDateTime.toLocaleTimeString('es-MX', {
+      timeZone: 'America/Mexico_City',
+      hour12: true,
       hour: '2-digit',
       minute: '2-digit',
-    });*/
+    })
+
 
    const emailContent = `
     <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); padding: 40px 20px;">
@@ -431,8 +433,8 @@ export const sendReminderEmail = async (reminderId: number, userId: number): Pro
           <h2 style="color: #1f2937; margin: 0 0 10px 0; font-size: 22px; font-weight: 600;">${reminder.title}</h2>
           ${reminder.description ? `<p style="color: #4b5563; margin: 10px 0; font-size: 15px; line-height: 1.6;">${reminder.description}</p>` : ''}
           <div style="margin-top: 25px; padding-top: 20px; border-top: 2px dashed #f9a8d4;">
-            <p style="margin: 5px 0; color: #6b7280; font-size: 14px;"><strong>📅 Fecha:</strong> ${adjustedDateTime.toLocaleDateString('es-ES')}</p>
-            <p style="margin: 5px 0; color: #6b7280; font-size: 14px;"><strong>⏰ Hora:</strong> ${adjustedDateTime.toLocaleTimeString('es-ES')}</p>
+            <p style="margin: 5px 0; color: #6b7280; font-size: 14px;"><strong>📅 Fecha:</strong> ${formattedDate}</p>
+            <p style="margin: 5px 0; color: #6b7280; font-size: 14px;"><strong>⏰ Hora:</strong> ${formattedTime}</p>
           </div>
         </div>
         <div style="background-color: #fdf2f8; border-left: 4px solid #ec4899; padding: 20px; border-radius: 10px; margin: 20px 0;">
@@ -471,7 +473,7 @@ export const sendReminderEmail = async (reminderId: number, userId: number): Pro
     console.log('✅ Email sent successfully:', result.id || 'no-id')
 
     // Marcar como enviado
-    await markReminderAsSent(reminderId, userId)
+    //await markReminderAsSent(reminderId, userId)
 
     return true
   } catch (error: any) {
@@ -493,15 +495,16 @@ export const sendReminderCreatedEmail = async (reminder: ReminderWithUser): Prom
     // Formatear fecha y hora correctamente en zona horaria local de México
     const reminderDateTime = new Date(reminder.date_time)
     const formattedDate = reminderDateTime.toLocaleDateString('es-MX', {
-      weekday: 'long',
-      year: 'numeric',
+      timeZone: 'America/Mexico_City',
+      day: '2-digit',
       month: 'long',
-      day: 'numeric',
+      year: 'numeric',
     })
     const formattedTime = reminderDateTime.toLocaleTimeString('es-MX', {
+      timeZone: 'America/Mexico_City',
+      hour12: true,
       hour: '2-digit',
       minute: '2-digit',
-      hour12: true,
     })
 
     const emailContent = `
