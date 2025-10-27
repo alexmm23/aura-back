@@ -193,7 +193,8 @@ cron.schedule('* * * * *', async () => {
   try {
     console.log('🕐 Internal cron triggered - calling webhook...')
     
-    const webhookUrl = 'https://back.aurapp.com.mx/api/reminders/webhook/send-upcoming'
+    const webhookUrl = 'https://back.aurapp.com.mx/api/reminders/webhook/check-pending'
+    
     
     const response = await fetch(webhookUrl, {
       method: 'POST',

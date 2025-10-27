@@ -145,6 +145,11 @@ export const createReminder = async (
     // Obtener el reminder completo con relaciones
     const reminderWithUser = await getReminderById(newReminder.getDataValue('id'), userId)
 
+    // 🔥 ENVIAR EMAIL DE CONFIRMACIÓN DE CREACIÓN
+    if (reminderWithUser) {
+      await sendReminderCreatedEmail(reminderWithUser)
+    }
+
     return reminderWithUser!
   } catch (error: any) {
     console.error('Error creating reminder:', error)
@@ -252,14 +257,19 @@ export const getPendingReminders = async (
   filters: ReminderFilters = {},
 ): Promise<ReminderWithUser[]> => {
   try {
+    const now = new Date()
+    console.log('🔍 getPendingReminders called at:', now.toISOString())
+    
     const whereConditions: any = {
       status: 'pending',
       deleted: false,
-      date_time: { [Op.lte]: new Date() },
+      date_time: { [Op.lte]: now }, // ✅ Usar objeto Date directamente
     }
 
     if (filters.frequency) whereConditions.frequency = filters.frequency
     if (filters.user_id) whereConditions.user_id = filters.user_id
+
+    console.log('🔍 Query conditions:', JSON.stringify(whereConditions, null, 2))
 
     const reminders = await Reminder.findAll({
       where: whereConditions,
@@ -268,14 +278,23 @@ export const getPendingReminders = async (
           model: User,
           as: 'user',
           attributes: ['id', 'name', 'lastname', 'email'],
+          required: true, // ✅ IMPORTANTE: Asegurar que siempre incluya el usuario
         },
       ],
       order: [['date_time', 'ASC']],
     })
 
-    return reminders.map((reminder: any) => reminder.toJSON()) as ReminderWithUser[]
+    console.log(`✅ Found ${reminders.length} pending reminders`)
+    
+    const remindersList = reminders.map((reminder: any) => {
+      const data = reminder.toJSON()
+      console.log(`  - ID: ${data.id}, Title: ${data.title}, Date: ${data.date_time}, User: ${data.user?.email}`)
+      return data as ReminderWithUser
+    })
+
+    return remindersList
   } catch (error: any) {
-    console.error('Error fetching pending reminders:', error)
+    console.error('❌ Error fetching pending reminders:', error)
     throw new Error('Error fetching pending reminders: ' + error.message)
   }
 }
@@ -386,17 +405,53 @@ export const sendReminderEmail = async (reminderId: number, userId: number): Pro
     const reminderDateTime = new Date(reminder.date_time)
     const adjustedDateTime = new Date(reminderDateTime.getTime() + 6 * 60 * 60 * 1000)
 
-    const emailContent = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #A44076;">🔔 ¡Recordatorio de AURA!</h2>
-        <p>Hola ${reminder.user.name},</p>
-        <h3>${reminder.title}</h3>
-        ${reminder.description ? `<p>${reminder.description}</p>` : ''}
-        <p><strong>Fecha:</strong> ${adjustedDateTime.toLocaleDateString('es-ES')}</p>
-        <p><strong>Hora:</strong> ${adjustedDateTime.toLocaleTimeString('es-ES')}</p>
-        <p>Saludos,<br>Equipo AURA</p>
+    /*const formattedDate = adjustedDateTime.toLocaleDateString('es-ES', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+
+    const formattedTime = adjustedDateTime.toLocaleTimeString('es-ES', {
+      hour: '2-digit',
+      minute: '2-digit',
+    });*/
+
+   const emailContent = `
+    <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); padding: 40px 20px;">
+      <div style="background-color: white; border-radius: 20px; padding: 40px; box-shadow: 0 10px 40px rgba(0,0,0,0.2);">
+        <div style="text-align: center; margin-bottom: 30px;">
+          <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); width: 100px; height: 100px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 20px; box-shadow: 0 8px 20px rgba(240, 147, 251, 0.4);">
+            <span style="font-size: 50px;">🔔</span>
+          </div>
+          <h1 style="color: #ec4899; margin: 0; font-size: 32px; font-weight: 700;">¡Es hora de recordar!</h1>
+          <p style="color: #6b7280; margin: 10px 0 0 0; font-size: 16px;">Aquí tienes tu recordatorio programado:</p>
+        </div>
+        <div style="background: linear-gradient(135deg, #fdf2f8 0%, #fce7f3 100%); padding: 30px; border-radius: 15px; margin: 20px 0;">
+          <h2 style="color: #1f2937; margin: 0 0 10px 0; font-size: 22px; font-weight: 600;">${reminder.title}</h2>
+          ${reminder.description ? `<p style="color: #4b5563; margin: 10px 0; font-size: 15px; line-height: 1.6;">${reminder.description}</p>` : ''}
+          <div style="margin-top: 25px; padding-top: 20px; border-top: 2px dashed #f9a8d4;">
+            <p style="margin: 5px 0; color: #6b7280; font-size: 14px;"><strong>📅 Fecha:</strong> ${adjustedDateTime.toLocaleDateString('es-ES')}</p>
+            <p style="margin: 5px 0; color: #6b7280; font-size: 14px;"><strong>⏰ Hora:</strong> ${adjustedDateTime.toLocaleTimeString('es-ES')}</p>
+          </div>
+        </div>
+        <div style="background-color: #fdf2f8; border-left: 4px solid #ec4899; padding: 20px; border-radius: 10px; margin: 20px 0;">
+          <p style="margin: 0; color: #9d174d; font-size: 14px; line-height: 1.6;">
+            💡 Consejo: Aprovecha el momento para completar esta tarea o revisarla cuanto antes.
+          </p>
+        </div>
+        <div style="text-align: center; margin-top: 40px; padding-top: 30px; border-top: 1px solid #f9a8d4;">
+          <p style="color: #9ca3af; font-size: 13px; margin: 0;">
+            Con cariño,<br>
+            <img src="https://i.imgur.com/v4cB1wy.png" alt="Logo AURA" style="margin-top: 10px; width: 120px; height: auto;" />
+          </p>
+          <p style="color: #d1d5db; font-size: 11px; margin: 15px 0 0 0;">
+            Este correo fue enviado automáticamente. No es necesario responder.
+          </p>
+        </div>
       </div>
-    `
+    </div>
+  `
 
     const mailOptions = {
       from: `AURA Recordatorios <noreply@${process.env.DOMAIN}>`,
@@ -425,6 +480,105 @@ export const sendReminderEmail = async (reminderId: number, userId: number): Pro
   }
 }
 
+
+// 🆕 NUEVO: Email cuando se CREA el recordatorio
+export const sendReminderCreatedEmail = async (reminder: ReminderWithUser): Promise<boolean> => {
+  try {
+    console.log(`📧 Enviando confirmación de creación para recordatorio ${reminder.id}`)
+
+    if (!reminder.user) {
+      throw new Error('User information not loaded')
+    }
+
+    // Formatear fecha y hora correctamente en zona horaria local de México
+    const reminderDateTime = new Date(reminder.date_time)
+    const formattedDate = reminderDateTime.toLocaleDateString('es-MX', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    })
+    const formattedTime = reminderDateTime.toLocaleTimeString('es-MX', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+    })
+
+    const emailContent = `
+      <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 20px;">
+        <div style="background-color: white; border-radius: 20px; padding: 40px; box-shadow: 0 10px 40px rgba(0,0,0,0.1);">
+          
+          <!-- Header -->
+          <div style="text-align: center; margin-bottom: 30px;">
+            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); width: 80px; height: 80px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 20px;">
+              <span style="font-size: 40px;">✅</span>
+            </div>
+            <h1 style="color: #667eea; margin: 0; font-size: 28px; font-weight: 700;">¡Recordatorio Creado!</h1>
+            <p style="color: #6b7280; margin: 10px 0 0 0; font-size: 16px;">Tu recordatorio ha sido guardado exitosamente</p>
+          </div>
+
+          <!-- Contenido principal -->
+          <div style="background: linear-gradient(135deg, #f6f8fb 0%, #e9ecef 100%); padding: 30px; border-radius: 15px; margin: 20px 0;">
+            <h2 style="color: #1f2937; margin: 0 0 10px 0; font-size: 22px; font-weight: 600;">${reminder.title}</h2>
+            ${reminder.description ? `<p style="color: #4b5563; margin: 10px 0; font-size: 15px; line-height: 1.6;">${reminder.description}</p>` : ''}
+            
+            <div style="margin-top: 25px; padding-top: 20px; border-top: 2px dashed #cbd5e1;">
+              <div style="display: flex; align-items: center; margin: 12px 0;">
+                <span style="font-size: 24px; margin-right: 15px;">📅</span>
+                <div>
+                  <p style="margin: 0; color: #6b7280; font-size: 12px; text-transform: uppercase; font-weight: 600;">Fecha</p>
+                  <p style="margin: 5px 0 0 0; color: #1f2937; font-size: 16px; font-weight: 600;">${formattedDate}</p>
+                </div>
+              </div>
+              
+              <div style="display: flex; align-items: center; margin: 12px 0;">
+                <span style="font-size: 24px; margin-right: 15px;">⏰</span>
+                <div>
+                  <p style="margin: 0; color: #6b7280; font-size: 12px; text-transform: uppercase; font-weight: 600;">Hora</p>
+                  <p style="margin: 5px 0 0 0; color: #1f2937; font-size: 16px; font-weight: 600;">${formattedTime}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Info adicional -->
+          <div style="background-color: #f0fdf4; border-left: 4px solid #22c55e; padding: 20px; border-radius: 10px; margin: 20px 0;">
+            <p style="margin: 0; color: #15803d; font-size: 14px; line-height: 1.6;">
+              <strong>💡 Te avisaremos:</strong> Recibirás un correo cuando llegue el momento de tu recordatorio.
+            </p>
+          </div>
+
+          <!-- Footer -->
+          <div style="text-align: center; margin-top: 40px; padding-top: 30px; border-top: 1px solid #e5e7eb;">
+            <p style="color: #9ca3af; font-size: 13px; margin: 0;">
+              Con cariño,<br>
+              <strong style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-size: 18px;">Equipo AURA</strong>
+            </p>
+            <p style="color: #d1d5db; font-size: 11px; margin: 15px 0 0 0;">
+              Este correo fue enviado automáticamente. No es necesario responder.
+            </p>
+          </div>
+        </div>
+      </div>
+    `
+
+    await resend.emails.send({
+      from: `AURA Recordatorios <noreply@${process.env.DOMAIN}>`,
+      to: reminder.user.email,
+      subject: `✅ Recordatorio creado: ${reminder.title}`,
+      html: emailContent,
+    })
+
+    console.log(`✅ Email de creación enviado a: ${reminder.user.email}`)
+    return true
+  } catch (error: any) {
+    console.error('❌ Error enviando email de creación:', error)
+    return false
+  }
+}
+
+
+// 🆕 NUEVO: Notificación de recordatorios próximos
 export const sendUpcomingRemindersNotification = async (
   userId: number,
   hoursAhead: number = 2,
@@ -442,15 +596,16 @@ export const sendUpcomingRemindersNotification = async (
     }
 
     const user = firstReminder.user
-    const remindersList = upcomingReminders
-      .map(
-        (r) =>
-          `• ${r.title} - ${new Date(r.date_time).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}`,
-      )
+     const remindersList = upcomingReminders
+      .map((r) => {
+        const adjustedTime = new Date(r.date_time)
+        adjustedTime.setHours(adjustedTime.getHours() + 6)
+        return `• ${r.title} - ${adjustedTime.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}`
+      })
       .join('\n')
 
     const emailContent = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #E6E2D2; padding: 20px;">
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #E6E2D2; padding: 20px;">
         <div style="background-color: white; padding: 30px; border-radius: 15px;">
           <h2 style="color: #CB8D27; text-align: center;">⏰ Recordatorios próximos</h2>
           <p>Hola ${user.name},</p>
@@ -461,6 +616,7 @@ export const sendUpcomingRemindersNotification = async (
           <p style="color: #666; font-size: 12px;">¡Prepárate para no olvidar nada! 📚</p>
         </div>
       </div>
+
     `
 
     await resend.emails.send({
@@ -477,11 +633,22 @@ export const sendUpcomingRemindersNotification = async (
 export const checkAndSendPendingReminders = async (): Promise<void> => {
   try {
     const now = new Date()
-    const pendingReminders = await getPendingReminders({
-      date_to: now.toISOString()
-    })
+    console.log('🔍 Checking pending reminders at:', now.toISOString())
+    
+    // ✅ CORRECTO: No pasar date_to, getPendingReminders ya filtra por fecha
+    const pendingReminders = await getPendingReminders()
 
-    console.log(`Found ${pendingReminders.length} pending reminders to send`)
+    console.log(`📊 Found ${pendingReminders.length} pending reminders to send`)
+
+    if (pendingReminders.length === 0) {
+      console.log('ℹ️ No pending reminders found')
+      return
+    }
+
+    // Mostrar detalles de los recordatorios encontrados
+    pendingReminders.forEach(r => {
+      console.log(`📝 Reminder ${r.id}: "${r.title}" - Scheduled for: ${r.date_time}`)
+    })
 
     for (const reminder of pendingReminders) {
       try {
@@ -491,14 +658,19 @@ export const checkAndSendPendingReminders = async (): Promise<void> => {
           continue
         }
 
+        console.log(`📧 Sending reminder ${reminder.id}: "${reminder.title}" to ${reminder.user.email}`)
+        
         await sendReminderEmail(reminder.id, reminder.user_id)
+        
         console.log(`✅ Reminder email sent for: ${reminder.title} to ${reminder.user.email}`)
-      } catch (error) {
-        console.error(`❌ Failed to send reminder ${reminder.id}:`, error)
+      } catch (error: any) {
+        console.error(`❌ Failed to send reminder ${reminder.id}:`, error.message)
       }
     }
+    
+    console.log('✅ Finished checking pending reminders')
   } catch (error: any) {
-    console.error('Error checking pending reminders:', error)
+    console.error('❌ Error checking pending reminders:', error)
   }
 }
 
@@ -598,23 +770,17 @@ export const sendPaymentConfirmationEmail = async (
       </div>
     `
 
-    // ✅ USAR RESEND (igual que sendReminderEmail)
-    const result: any = await resend.emails.send({
+    await resend.emails.send({
       from: `AURA Pagos <noreply@${process.env.DOMAIN}>`,
       to: email,
-      subject: '🎉 ¡Pago confirmado! Bienvenido a AURA Premium',
+      subject: `💰 Confirmación de Pago - ${paymentData.amount} ${paymentData.currency}`,
       html: emailContent,
     })
 
-    console.log('✅ Payment confirmation email sent successfully:', result.id || 'no-id')
-
+    console.log(`✅ Email de confirmación de pago enviado a: ${email}`)
     return true
   } catch (error: any) {
-    console.error('❌ Error sending payment confirmation email:', error)
-    console.error('Error details:', {
-      message: error.message,
-      code: error.code,
-    })
-    throw new Error('Error sending payment confirmation email: ' + error.message)
+    console.error('❌ Error enviando email de confirmación de pago:', error)
+    return false
   }
 }
