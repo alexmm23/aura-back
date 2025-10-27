@@ -25,12 +25,32 @@ import { createRequire } from 'module'
 import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
+import env from '../config/enviroment.js'
 
 const require = createRequire(import.meta.url)
 const { Op } = require('sequelize')
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
+
+// Helper function para obtener la URL base según el entorno
+const getBaseUrl = (): string => {
+  return env.NODE_ENV === 'development' ? 'http://localhost:3000' : 'https://back.aurapp.com.mx'
+}
+
+// Helper function para procesar attachments y agregar URL completa
+const processAttachments = (attachments: any[]): any[] => {
+  const baseUrl = getBaseUrl()
+  return attachments.map((attachment) => {
+    if (attachment.file_type !== 'link' && !attachment.file_url.startsWith('http')) {
+      return {
+        ...attachment,
+        file_url: `${baseUrl}${attachment.file_url}`,
+      }
+    }
+    return attachment
+  })
+}
 
 // ==================== FORUM SERVICES ====================
 
@@ -247,8 +267,15 @@ export const getPostsByForum = async (
           attributes: ['created_at'],
         })
 
+        const postJson = post.toJSON()
+
+        // Procesar attachments del post
+        if (postJson.attachments && postJson.attachments.length > 0) {
+          postJson.attachments = processAttachments(postJson.attachments)
+        }
+
         return {
-          ...post.toJSON(),
+          ...postJson,
           comments_count: commentsCount,
           latest_comment: latestComment?.getDataValue('created_at'),
         }
@@ -296,8 +323,15 @@ export const getPostById = async (id: number): Promise<ForumPostWithDetails | nu
       attributes: ['created_at'],
     })
 
+    const postJson = post.toJSON()
+
+    // Procesar attachments del post
+    if (postJson.attachments && postJson.attachments.length > 0) {
+      postJson.attachments = processAttachments(postJson.attachments)
+    }
+
     return {
-      ...post.toJSON(),
+      ...postJson,
       comments_count: commentsCount,
       latest_comment: latestComment?.getDataValue('created_at'),
     }
@@ -489,9 +523,25 @@ export const getCommentsByPost = async (
           order: [['created_at', 'ASC']],
         })
 
+        const commentJson = comment.toJSON()
+
+        // Procesar attachments del comentario principal
+        if (commentJson.attachments && commentJson.attachments.length > 0) {
+          commentJson.attachments = processAttachments(commentJson.attachments)
+        }
+
+        // Procesar respuestas y sus attachments
+        const processedReplies = replies.map((reply: any) => {
+          const replyJson = reply.toJSON()
+          if (replyJson.attachments && replyJson.attachments.length > 0) {
+            replyJson.attachments = processAttachments(replyJson.attachments)
+          }
+          return replyJson
+        })
+
         return {
-          ...comment.toJSON(),
-          replies: replies.map((reply: any) => reply.toJSON()),
+          ...commentJson,
+          replies: processedReplies,
           replies_count: replies.length,
         }
       }),
