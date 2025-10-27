@@ -552,7 +552,7 @@ export const sendReminderCreatedEmail = async (reminder: ReminderWithUser): Prom
           <div style="text-align: center; margin-top: 40px; padding-top: 30px; border-top: 1px solid #e5e7eb;">
             <p style="color: #9ca3af; font-size: 13px; margin: 0;">
               Con cariño,<br>
-              <strong style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-size: 18px;">Equipo AURA</strong>
+               <img src="https://i.imgur.com/v4cB1wy.png" alt="Logo AURA" style="margin-top: 10px; width: 120px; height: auto;" />
             </p>
             <p style="color: #d1d5db; font-size: 11px; margin: 15px 0 0 0;">
               Este correo fue enviado automáticamente. No es necesario responder.
