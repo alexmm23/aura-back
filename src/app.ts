@@ -31,22 +31,30 @@ const allowedOrigins = [
   'http://localhost:8081', // para pruebas locales web
 ]
 
+// ✅ SOLUCIÓN: Aplicar express.json() solo si NO es una ruta webhook
+app.use((req, res, next) => {
+  if (req.originalUrl.includes('/webhook')) {
+    next() // Skip JSON parsing for webhook routes
+  } else {
+    express.json({
+      limit: '50mb',
+      verify: (req, res, buf, encoding) => {
+        if (buf.length > 50 * 1024 * 1024) {
+          // 50MB en bytes
+          const error = new Error('Request entity too large')
+          ;(error as any).status = 413
+          throw error
+        }
+      },
+    })(req, res, next)
+  }
+})
+
+// ✅ Webhook routes con raw body
 app.use('/api/payment/webhook', express.raw({ type: 'application/json' }))
+app.use('/api/payments/webhook', express.raw({ type: 'application/json' }))
 app.use('/payment/webhook', express.raw({ type: 'application/json' }))
 
-app.use(
-  express.json({
-    limit: '50mb',
-    verify: (req, res, buf, encoding) => {
-      if (buf.length > 50 * 1024 * 1024) {
-        // 50MB en bytes
-        const error = new Error('Request entity too large')
-        ;(error as any).status = 413
-        throw error
-      }
-    },
-  }),
-)
 app.use(express.urlencoded({ extended: true, limit: '50mb' }))
 app.use(cookieParser())
 app.use(
@@ -182,7 +190,7 @@ cron.schedule('* * * * *', async () => {
   try {
     console.log('🕐 Internal cron triggered - calling webhook...')
 
-    const webhookUrl = 'https://back.aurapp.com.mx/api/reminders/webhook/send-upcoming'
+    const webhookUrl = 'https://back.aurapp.com.mx/api/reminders/webhook/check-pending'
 
     const response = await fetch(webhookUrl, {
       method: 'POST',

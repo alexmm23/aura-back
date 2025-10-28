@@ -103,6 +103,47 @@ reminderRouter.get('/upcoming', authenticateToken, async (req: Request & { user?
   }
 })
 
+// GET /reminders/pending-home - Obtener recordatorios pendientes para la página de inicio
+reminderRouter.get('/pending-home', authenticateToken, async (req: Request & { user?: UserAttributes }, res: Response): Promise<void> => {
+  try {
+    const { user } = req
+    if (!user) {
+      res.status(401).json({
+        success: false,
+        error: 'Unauthorized'
+      })
+      return
+    }
+
+    // Obtener los próximos 5 recordatorios pendientes ordenados por fecha
+    const limit = req.query.limit ? parseInt(req.query.limit as string) : 5
+    
+    const reminders = await getAllReminders(
+      user.id!, 
+      { 
+        status: 'pending',
+        date_from: new Date().toISOString() // Solo recordatorios futuros
+      },
+      {
+        limit,
+        sort_by: 'date_time',
+        sort_order: 'ASC'
+      }
+    )
+    
+    res.status(200).json({
+      success: true,
+      data: reminders.reminders,
+      count: reminders.reminders.length
+    })
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    })
+  }
+})
+
 // GET /reminders/statistics - Obtener estadísticas de reminders
 reminderRouter.get('/statistics', authenticateToken, async (req: Request & { user?: UserAttributes }, res: Response): Promise<void> => {
   try {
