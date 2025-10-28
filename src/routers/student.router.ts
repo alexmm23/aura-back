@@ -21,10 +21,8 @@ import {
 import { UserAttributes } from '@/types/user.types'
 import { UserAccount } from '@/models/userAccount.model'
 import { getNewAccessToken } from '@/services/googleAuth.service'
-import { getTeamsTasks } from '@/services/teams.service'
 import { MoodleService } from '@/services/moodle.service'
 import { UnifiedAssignment } from '@/types/moodle.types'
-import { access } from 'fs'
 
 const studentRouter = Router()
 
@@ -402,12 +400,12 @@ studentRouter.get('/homework', async (req: Request & { user?: UserAttributes }, 
     // Get Moodle assignments
     try {
       const moodleService = await MoodleService.getServiceForUser(user.id!)
-      console.log('Moodle service for user:', moodleService ? 'Found' : 'Not found')
+      // console.log('Moodle service for user:', moodleService ? 'Found' : 'Not found')
 
       if (moodleService) {
-        console.log('Attempting to fetch Moodle assignments...')
+        // console.log('Attempting to fetch Moodle assignments...')
         const moodleAssignments = await moodleService.getAllAssignments()
-        console.log(`Successfully fetched ${moodleAssignments.length} assignments from Moodle`)
+        // console.log(`Successfully fetched ${moodleAssignments.length} assignments from Moodle`)
 
         // Transform to unified format
         const unifiedMoodle: UnifiedAssignment[] = moodleAssignments.map((assignment: any) => {
