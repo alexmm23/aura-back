@@ -22,6 +22,8 @@ import { UserAttributes } from '@/types/user.types'
 import { UserAccount } from '@/models/userAccount.model'
 import { getNewAccessToken } from '@/services/googleAuth.service'
 import { getTeamsTasks } from '@/services/teams.service'
+import { MoodleService } from '@/services/moodle.service'
+import { UnifiedAssignment } from '@/types/moodle.types'
 import { access } from 'fs'
 
 const studentRouter = Router()
@@ -321,7 +323,7 @@ studentRouter.get('/homework', async (req: Request & { user?: UserAttributes }, 
       return
     }
 
-    let allHomework: any[] = []
+    let allHomework: UnifiedAssignment[] = []
 
     // Get Google Classroom assignments
     const googleAccount = await UserAccount.findOne({
@@ -346,10 +348,43 @@ studentRouter.get('/homework', async (req: Request & { user?: UserAttributes }, 
 
       if (accessToken) {
         try {
-          console.log('Attempting to fetch classroom assignments with access token...')
+          // console.log('Attempting to fetch classroom assignments with access token...')
           const classroomHomework = await getClassroomAssignments(accessToken)
-          console.log(`Successfully fetched ${classroomHomework.length} assignments`)
-          allHomework = [...allHomework, ...classroomHomework]
+          // console.log(`Successfully fetched ${classroomHomework.length} assignments from Classroom`)
+
+          // Transform to unified format
+          const unifiedClassroom: UnifiedAssignment[] = classroomHomework.map((hw: any) => {
+            let dueDate = null
+            if (hw.dueDate) {
+              try {
+                const parsedDate = new Date(hw.dueDate.year, hw.dueDate.month - 1, hw.dueDate.day)
+                if (!isNaN(parsedDate.getTime())) {
+                  dueDate = parsedDate.toISOString()
+                }
+              } catch (error) {
+                console.warn(`Invalid date format for assignment ${hw.title}: ${hw.dueDate}`)
+              }
+            }
+
+            return {
+              id: `classroom_${hw.courseId}_${hw.courseWorkId}_${hw.submissionId || 'no-submission'}`,
+              title: hw.title || 'Sin título',
+              description: hw.description || '',
+              dueDate,
+              dueTime: hw.dueTime || null,
+              maxPoints: hw.maxPoints || null,
+              courseName: hw.courseName || 'Sin nombre',
+              courseId: hw.courseId,
+              status: hw.state || 'assigned',
+              source: 'classroom' as const,
+              submissionStatus: hw.submissionState || 'NEW',
+              link: hw.alternateLink,
+              alternateLink: hw.alternateLink,
+              materials: hw.materials || [],
+            }
+          })
+
+          allHomework = [...allHomework, ...unifiedClassroom]
         } catch (error: any) {
           console.error('Error fetching Google Classroom assignments - Full details:', {
             message: error.message,
@@ -362,6 +397,64 @@ studentRouter.get('/homework', async (req: Request & { user?: UserAttributes }, 
       } else {
         console.warn('No valid access token available for Google Classroom')
       }
+    }
+
+    // Get Moodle assignments
+    try {
+      const moodleService = await MoodleService.getServiceForUser(user.id!)
+      console.log('Moodle service for user:', moodleService ? 'Found' : 'Not found')
+
+      if (moodleService) {
+        console.log('Attempting to fetch Moodle assignments...')
+        const moodleAssignments = await moodleService.getAllAssignments()
+        console.log(`Successfully fetched ${moodleAssignments.length} assignments from Moodle`)
+
+        // Transform to unified format
+        const unifiedMoodle: UnifiedAssignment[] = moodleAssignments.map((assignment: any) => {
+          const now = Math.floor(Date.now() / 1000)
+          let status: 'assigned' | 'submitted' | 'graded' | 'late' | 'missing' = 'assigned'
+
+          // Determine status based on submission and dates
+          if (assignment.submission) {
+            if (assignment.submission.status === 'submitted') {
+              status = 'submitted'
+            } else if (assignment.submission.status === 'graded') {
+              status = 'graded'
+            }
+          } else if (assignment.duedate && assignment.duedate < now) {
+            status = 'late'
+          }
+
+          return {
+            id: `moodle_${assignment.course}_${assignment.id}`,
+            title: assignment.name,
+            description: assignment.intro || '',
+            dueDate: assignment.duedate ? new Date(assignment.duedate * 1000).toISOString() : null,
+            dueTime: assignment.duedate
+              ? new Date(assignment.duedate * 1000).toLocaleTimeString('es-ES', {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })
+              : null,
+            maxPoints: assignment.grade || null,
+            courseName: assignment.courseName || assignment.courseShortName || 'Sin nombre',
+            courseId: assignment.course.toString(),
+            status,
+            source: 'moodle' as const,
+            submissionStatus: assignment.submission?.status || 'new',
+            grade: assignment.submission?.grade || null,
+            allowSubmissionsFromDate: assignment.allowsubmissionsfromdate,
+            cutoffDate: assignment.cutoffdate,
+          }
+        })
+
+        allHomework = [...allHomework, ...unifiedMoodle]
+      } else {
+        console.log('No Moodle account connected for this user')
+      }
+    } catch (error: any) {
+      console.error('Error fetching Moodle assignments:', error.message)
+      // Don't throw error, continue without Moodle assignments
     }
 
     // // Get Microsoft Teams tasks
@@ -1080,35 +1173,88 @@ studentRouter.post('/homework', async (req, res) => {
     res.status(500).json({ error: 'Internal Server Error' })
   }
 })
+studentRouter.get(
+  '/courses/list',
+  async (req: Request & { user?: UserAttributes }, res: Response) => {
+    try {
+      const { user } = req
+      if (!user) {
+        res.status(401).json({ error: 'Unauthorized' })
+        return
+      }
 
-studentRouter.get('/courses/list', async (req, res) => {
-  try {
-    const { user } = req
-    if (!user) {
-      res.status(401).json({ error: 'Unauthorized' })
-      return
+      let allCourses: any[] = []
+
+      // Get Google Classroom courses
+      const googleAccount = await UserAccount.findOne({
+        where: {
+          user_id: user.id,
+          platform: 'google',
+        },
+      })
+
+      if (googleAccount && googleAccount.access_token) {
+        try {
+          let accessToken = googleAccount.access_token
+
+          // Check if token is expired and refresh if needed
+          if (googleAccount.expiry_date && new Date(googleAccount.expiry_date) < new Date()) {
+            try {
+              accessToken = await getNewAccessToken(user.id)
+            } catch (error: any) {
+              console.error('Failed to refresh Google token:', error)
+            }
+          }
+
+          if (accessToken) {
+            const googleCourses = await listCourses(accessToken)
+            const formattedGoogleCourses = googleCourses.map((course: any) => ({
+              ...course,
+              source: 'classroom',
+            }))
+            allCourses = [...allCourses, ...formattedGoogleCourses]
+          }
+        } catch (error) {
+          console.error('Error fetching Google Classroom courses:', error)
+        }
+      }
+
+      // Get Moodle courses
+      try {
+        const moodleService = await MoodleService.getServiceForUser(user.id!)
+        if (moodleService) {
+          const moodleCourses = await moodleService.getCourses()
+          const formattedMoodleCourses = moodleCourses.map((course: any) => ({
+            id: course.id.toString(),
+            name: course.fullname || course.displayname,
+            section: course.shortname,
+            description: course.summary || '',
+            room: course.category || '',
+            ownerId: course.contacts?.[0]?.id || '',
+            creationTime: course.startdate ? new Date(course.startdate * 1000).toISOString() : null,
+            updateTime: course.timemodified
+              ? new Date(course.timemodified * 1000).toISOString()
+              : null,
+            enrollmentCode: null,
+            courseState: course.visible ? 'ACTIVE' : 'ARCHIVED',
+            alternateLink:
+              course.courseurl || `${moodleService.baseUrl}/course/view.php?id=${course.id}`,
+            teacherFolder: null,
+            calendarId: null,
+            source: 'moodle',
+          }))
+          allCourses = [...allCourses, ...formattedMoodleCourses]
+        }
+      } catch (error) {
+        console.error('Error fetching Moodle courses:', error)
+      }
+
+      res.status(200).json(allCourses)
+    } catch (error) {
+      console.error('Error listing courses:', error)
+      res.status(500).json({ error: 'Internal Server Error' })
     }
-    // Get Google account
-    const googleAccount = await UserAccount.findOne({
-      where: {
-        user_id: user.id,
-        platform: 'google',
-      },
-    })
-
-    if (!googleAccount || !googleAccount.access_token) {
-      res.status(406).json({ error: 'No Google account linked' })
-      return
-    }
-
-    let accessToken = googleAccount.access_token
-
-    const courses = await listCourses(accessToken)
-    res.status(200).json(courses)
-  } catch (error) {
-    console.error('Error listing courses:', error)
-    res.status(500).json({ error: 'Internal Server Error' })
-  }
-})
+  },
+)
 
 export { studentRouter }

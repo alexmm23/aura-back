@@ -16,6 +16,7 @@ import { forumRouter } from './routers/forum.router.js'
 import { reminderRouter } from './routers/reminder.router.js'
 import { chatRouter } from './routers/chat.router.js'
 import { auraAiRouter } from './routers/auraAi.router.js'
+import { moodleRouter } from './routers/moodle.router.js'
 import path from 'path'
 
 // Importar modelos con asociaciones configuradas
@@ -28,33 +29,36 @@ const allowedOrigins = [
   'null', // para apps móviles
   'exp://127.0.0.1:19000', // para Expo Go en desarrollo
   'http://localhost:8081', // para pruebas locales web
-];
+]
 
 app.use('/api/payment/webhook', express.raw({ type: 'application/json' }))
 app.use('/payment/webhook', express.raw({ type: 'application/json' }))
 
-app.use(express.json({ 
-  limit: '50mb',
-  verify: (req, res, buf, encoding) => {
-    if (buf.length > 50 * 1024 * 1024) { // 50MB en bytes
-      const error = new Error('Request entity too large');
-      (error as any).status = 413;
-      throw error;
-    }
-  }
-}))
+app.use(
+  express.json({
+    limit: '50mb',
+    verify: (req, res, buf, encoding) => {
+      if (buf.length > 50 * 1024 * 1024) {
+        // 50MB en bytes
+        const error = new Error('Request entity too large')
+        ;(error as any).status = 413
+        throw error
+      }
+    },
+  }),
+)
 app.use(express.urlencoded({ extended: true, limit: '50mb' }))
 app.use(cookieParser())
 app.use(
   cors({
     origin: (origin, callback) => {
       // Permitir requests sin origin (apps móviles, Postman, etc.)
-      if (!origin) return callback(null, true);
-      
+      if (!origin) return callback(null, true)
+
       if (allowedOrigins.includes(origin)) {
-        return callback(null, true);
+        return callback(null, true)
       } else {
-        return callback(new Error('No permitido por CORS'));
+        return callback(new Error('No permitido por CORS'))
       }
     },
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
@@ -62,8 +66,6 @@ app.use(
     credentials: true,
   }),
 )
-
-
 
 // Middleware para servir archivos estáticos con encabezados CORS
 app.use(
@@ -76,8 +78,6 @@ app.use(
   },
   express.static(path.join(process.cwd(), 'storage')),
 )
-
-
 
 const routes = [
   { path: `${API_BASE_PATH}/users`, router: userRouter },
@@ -94,6 +94,7 @@ const routes = [
   { path: `${API_BASE_PATH}/reminders`, router: reminderRouter },
   { path: `${API_BASE_PATH}/chats`, router: chatRouter },
   { path: `${API_BASE_PATH}/auraai`, router: auraAiRouter },
+  { path: `${API_BASE_PATH}/moodle`, router: moodleRouter },
 ]
 
 routes.forEach(({ path, router }) => {
@@ -120,7 +121,7 @@ app.get('/health', (req, res) => {
 app.post('/cron/check-reminders', async (req, res) => {
   try {
     console.log('🕐 External cron triggered - starting webhook...')
-    
+
     // ✅ Responder INMEDIATAMENTE a cron-job.org
     res.status(200).json({
       success: true,
@@ -130,7 +131,6 @@ app.post('/cron/check-reminders', async (req, res) => {
 
     // ✅ Procesar en background (sin await)
     processRemindersBackground()
-    
   } catch (error: any) {
     console.error('❌ Error starting cron:', error)
     res.status(500).json({
@@ -145,24 +145,24 @@ app.post('/cron/check-reminders', async (req, res) => {
 async function processRemindersBackground() {
   try {
     const startTime = Date.now()
-    
+
     // ✅ CAMBIAR A check-pending en lugar de send-upcoming
-    const webhookUrl = process.env.RAILWAY_PUBLIC_DOMAIN 
+    const webhookUrl = process.env.RAILWAY_PUBLIC_DOMAIN
       ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}/api/reminders/webhook/check-pending`
       : 'http://localhost:3000/api/reminders/webhook/check-pending'
-    
+
     console.log('📞 Calling webhook in background:', webhookUrl)
-    
+
     const webhookResponse = await fetch(webhookUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-      }
+      },
     })
 
     const webhookResult = await webhookResponse.json()
     const endTime = Date.now()
-    
+
     if (webhookResponse.ok) {
       console.log('✅ Background webhook completed successfully')
       console.log(`⏱️ Total execution time: ${endTime - startTime}ms`)
@@ -170,7 +170,6 @@ async function processRemindersBackground() {
     } else {
       console.error('❌ Background webhook failed:', webhookResult)
     }
-    
   } catch (error: any) {
     console.error('❌ Error in background webhook:', error)
   }
@@ -182,14 +181,14 @@ async function processRemindersBackground() {
 cron.schedule('* * * * *', async () => {
   try {
     console.log('🕐 Internal cron triggered - calling webhook...')
-    
+
     const webhookUrl = 'https://back.aurapp.com.mx/api/reminders/webhook/send-upcoming'
-    
+
     const response = await fetch(webhookUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-      }
+      },
     })
 
     if (response.ok) {
@@ -197,7 +196,6 @@ cron.schedule('* * * * *', async () => {
     } else {
       throw new Error(`Webhook failed: ${response.status}`)
     }
-    
   } catch (error: any) {
     console.error('❌ Internal cron webhook error:', error)
   }
@@ -208,7 +206,7 @@ console.log('✅ Internal cron job scheduled to run every minute')
 // ==================== KEEPALIVE (para evitar sleep) ====================
 // Self-ping cada 10 minutos para mantener la app activa en Railway
 
-const RAILWAY_URL = process.env.RAILWAY_PUBLIC_DOMAIN 
+const RAILWAY_URL = process.env.RAILWAY_PUBLIC_DOMAIN
   ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
   : null
 
