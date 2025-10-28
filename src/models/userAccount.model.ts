@@ -43,7 +43,7 @@ export const UserAccount = sequelize.define(
     },
     refresh_token: {
       type: DataTypes.TEXT,
-      allowNull: false,
+      allowNull: true,
     },
     created_at: {
       type: DataTypes.DATE,
@@ -58,6 +58,35 @@ export const UserAccount = sequelize.define(
     expiry_date: {
       type: DataTypes.DATE,
       allowNull: true,
+    },
+    // Campos adicionales para información del usuario
+    email: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    name: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    firstname: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    lastname: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    // Campo específico para Moodle URL
+    provider_url: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      comment: 'Base URL for the provider (e.g., Moodle instance URL)',
+    },
+    // Campo para ID del proveedor
+    provider_account_id: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      comment: 'User ID in the external provider system',
     },
   },
   {
