@@ -89,6 +89,68 @@ notebookRouter.put('/edit/:id', authenticateToken, async (req: Request, res: Res
   }
 })
 
+// GET /api/notebook/:id/pages - Obtener páginas de un notebook específico
+notebookRouter.get('/:id/pages', authenticateToken, async (req: Request, res: Response) => {
+  try {
+    const userId = req.user?.id
+    const notebookId = Number(req.params.id)
+
+    if (!userId) {
+      res.status(400).json({ error: 'User ID not found in token' })
+      return
+    }
+
+    if (!notebookId) {
+      res.status(400).json({ error: 'Notebook ID is required' })
+      return
+    }
+
+    // Determinar la URL base según el entorno
+    const baseUrl =
+      env.NODE_ENV === 'development' ? 'http://localhost:3000' : 'https://back.aurapp.com.mx'
+
+    // Obtener páginas del notebook específico
+    const pagesData = await notebookService.getNotebookPages(notebookId, Number(userId))
+
+    const pages = pagesData.map((page: any) => {
+      return {
+        id: page.id,
+        title: page.title,
+        createdAt: page.created_at,
+        contents: page.contents.map((content: any) => {
+          // Si el content.data es una ruta de imagen, agregar el baseUrl
+          let dataWithUrl = content.data
+          if (content.type === 'image' && content.data && !content.data.startsWith('http')) {
+            dataWithUrl = `${baseUrl}${content.data.startsWith('/') ? '' : '/'}${content.data}`
+          }
+
+          return {
+            id: content.id,
+            type: content.type,
+            data: dataWithUrl,
+            x: content.x,
+            y: content.y,
+            width: content.width,
+            height: content.height,
+            createdAt: content.created_at,
+          }
+        }),
+      }
+    })
+
+    res.status(200).json({
+      success: true,
+      data: {
+        pages,
+        total: pages.length,
+      },
+    })
+  } catch (error) {
+    console.error('Error getting notebook pages:', error)
+    res.status(500).json({ error: `Internal Server Error: ${error}` })
+  }
+})
+
 // GET /api/notebook/pages - Obtener todas las páginas del usuario
 notebookRouter.get('/pages', authenticateToken, async (req: Request, res: Response) => {
   try {
