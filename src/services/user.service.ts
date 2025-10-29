@@ -2,11 +2,10 @@ import { User } from '../models/user.model.js'
 import { UserSession } from '../models/userSession.model.js'
 import { UserAttributes, UserCreationAttributes, UserLoginAttributes } from '../types/user.types.js'
 import bcrypt from 'bcryptjs'
-import jwt from 'jsonwebtoken'
 import { sendEmail } from './email.service.js'
-import env from '@/config/enviroment'
 import { generateRefreshToken, generateToken } from '@/utils/jwt'
 import { createRequire } from 'module'
+import { UserAccount } from '../models/userAccount.model.js'
 
 const require = createRequire(import.meta.url)
 const { Op } = require('sequelize')
@@ -291,5 +290,27 @@ export const updateSessionRefreshToken = async (
   } catch (error) {
     console.error('Error updating session refresh token:', error)
     return false
+  }
+}
+
+import { UserAccountAttributes } from '../types/userAccount.types.js'
+
+export const getAccounts = async (
+  userId: number,
+  platform: string,
+): Promise<UserAccountAttributes[]> => {
+  try {
+    const accounts: Array<UserAccountAttributes> = (
+      await UserAccount.findAll({
+        where: {
+          user_id: userId,
+          platform,
+        },
+      })
+    ).map((account: any) => account.toJSON() as UserAccountAttributes)
+    return accounts
+  } catch (error: any) {
+    console.error('Error getting user accounts:', error)
+    throw new Error('Failed to get user accounts')
   }
 }

@@ -133,14 +133,14 @@ router.post('/webhook',
               
             const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
             
-            // Agregar metadata del checkout session al payment intent
-            paymentIntent.metadata = {
-              ...paymentIntent.metadata,
-              userId: checkoutSession.metadata?.userId || '',
-              userEmail: checkoutSession.metadata?.userEmail || checkoutSession.customer_email || ''
-            };
+            // Extraer userId y email directamente de la sesión de checkout
+            const userId = checkoutSession.metadata?.userId;
+            const userEmail = checkoutSession.metadata?.userEmail || checkoutSession.customer_email || '';
             
-            await handleSuccessfulPayment(paymentIntent);
+            console.log(`📋 Procesando checkout.session.completed con userId: ${userId}, email: ${userEmail}`);
+            
+            // Pasar los datos directamente a handleSuccessfulPayment
+            await handleSuccessfulPayment(paymentIntent, userId, userEmail);
           }
         }
         break;
@@ -166,14 +166,19 @@ router.post('/webhook',
   }
 );
 
-// Función para manejar pagos exitosos
-async function handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
+// Función para manejar pagos exitosos - ahora acepta parámetros opcionales
+async function handleSuccessfulPayment(
+  paymentIntent: Stripe.PaymentIntent, 
+  userIdOverride?: string, 
+  userEmailOverride?: string
+) {
   try {
-    // Verificar si existe userId en metadata
-    if (paymentIntent.metadata?.userId) {
-      const userId = paymentIntent.metadata.userId;
-      const userEmail = paymentIntent.metadata?.userEmail;
-      
+    // Priorizar parámetros directos sobre metadata del paymentIntent
+    const userId = userIdOverride || paymentIntent.metadata?.userId;
+    const userEmail = userEmailOverride || paymentIntent.metadata?.userEmail;
+    
+    // Verificar si existe userId
+    if (userId) {
       console.log(`🔄 Actualizando suscripción para usuario ${userId}...`);
       
       // Calcular fechas de inicio y fin de suscripción (1 mes de duración)
@@ -207,7 +212,7 @@ async function handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
               paymentId: paymentIntent.id,
               date: new Date().toISOString(),
               status: paymentIntent.status,
-            }
+            };
 
             await sendManualPaymentConfirmation(userEmail, paymentData);
             console.log(`📧 Confirmation email sent to ${userEmail}`);
@@ -446,6 +451,13 @@ router.post('/create-checkout-session', authenticateToken, async (req: Request &
         userId: userId.toString(),
         userEmail: user.getDataValue('email'),
       },
+      // Asegurar que los metadatos también se copien al PaymentIntent creado por Checkout
+      payment_intent_data: {
+        metadata: {
+          userId: userId.toString(),
+          userEmail: user.getDataValue('email'),
+        }
+      }
     })
 
     console.log('✅ Checkout session created:', session.id)

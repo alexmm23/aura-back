@@ -3,6 +3,7 @@ import { authenticateToken } from '@/middlewares/auth.middleware'
 import { UserAttributes } from '@/types/user.types'
 import { MoodleService } from '@/services/moodle.service'
 import { MoodleLoginRequest } from '@/types/moodle.types'
+import { getAccounts } from '@/services/user.service'
 
 const moodleRouter = Router()
 
@@ -415,4 +416,32 @@ moodleRouter.get(
   },
 )
 
+//GET /moodle/accounts - Get connected Moodle accounts for the user
+moodleRouter.get(
+  '/accounts',
+  authenticateToken,
+  async (req: Request & { user?: UserAttributes }, res: Response) => {
+    try {
+      const { user } = req
+      if (!user) {
+        res.status(401).json({
+          success: false,
+          error: 'Unauthorized',
+        })
+        return
+      }
+      const accounts = await getAccounts(user.id!, 'moodle')
+      res.status(200).json({
+        success: true,
+        data: accounts,
+      })
+    } catch (error: any) {
+      console.error('Error getting Moodle accounts:', error)
+      res.status(500).json({
+        success: false,
+        error: error.message || 'Failed to get Moodle accounts',
+      })
+    }
+  },
+)
 export { moodleRouter }
