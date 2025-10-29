@@ -164,4 +164,33 @@ export class NotebookService {
       ],
     })
   }
+
+  // En tu notebook.service.ts
+  async getNotebookPages(notebookId: number, userId: number) {
+    try {
+      // Verificar que el notebook pertenece al usuario
+      const notebook = await this.getNotebookById(notebookId)
+      if (!notebook || notebook.user_id !== userId) {
+        throw new Error('Notebook not found or unauthorized')
+      }
+
+      // Obtener páginas del notebook
+      const pages = await Page.findAll({
+        where: { notebook_id: notebookId },
+        include: [
+          {
+            model: Content,
+            as: 'contents',
+            required: false,
+          },
+        ],
+        order: [['created_at', 'DESC']],
+      })
+
+      return pages
+    } catch (error) {
+      console.error('Error getting notebook pages:', error)
+      throw error
+    }
+  }
 }
