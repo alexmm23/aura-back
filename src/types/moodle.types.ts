@@ -47,6 +47,7 @@ export interface MoodleCourse {
 export interface MoodleAssignment {
   id: number
   course: number
+  courseName?: string
   name: string
   intro: string
   introformat: number

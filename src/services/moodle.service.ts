@@ -230,15 +230,17 @@ export class MoodleService {
   async getCourseAssignments(courseId: number): Promise<MoodleAssignment[]> {
     try {
       const data = await this.callMoodleAPI('mod_assign_get_assignments')
-      console.log('Assignments data retrieved for course', courseId, ':', data)
       if (data.courses && data.courses.length > 0) {
-        // Obtener todos los assignments de todos los cursos
-        return data.courses.flatMap((course: any) => course.assignments || [])
+        return data.courses.flatMap((course: any) =>
+          (course.assignments || []).map((assignment: any) => ({
+            ...assignment,
+            courseName: course.fullname,
+            courseShortName: course.shortname,
+          })),
+        )
       }
-
       return []
     } catch (error: any) {
-      console.error('Error getting assignments:', error)
       throw new Error('Failed to get assignments from Moodle')
     }
   }
@@ -256,8 +258,6 @@ export class MoodleService {
         // Add course info to each assignment
         const assignmentsWithCourse = assignments.map((assignment) => ({
           ...assignment,
-          courseName: 'Course Name',
-          courseShortName: 'Course Short Name',
         }))
         allAssignments.push(...assignmentsWithCourse)
       } catch (error) {
