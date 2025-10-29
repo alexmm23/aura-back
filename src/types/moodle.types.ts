@@ -48,6 +48,7 @@ export interface MoodleAssignment {
   id: number
   course: number
   courseName?: string
+  courseShortname?: string
   name: string
   intro: string
   introformat: number

@@ -1088,7 +1088,84 @@ studentRouter.get(
     }
   },
 )
+// Get Moodle assignment details
+studentRouter.get(
+  '/homework/moodle/:courseId/:assignmentId',
+  async (req: Request & { user?: UserAttributes }, res: Response) => {
+    try {
+      const { courseId, assignmentId } = req.params
+      const { user } = req
 
+      if (!user) {
+        res.status(401).json({ error: 'Unauthorized' })
+        return
+      }
+
+      if (!courseId || !assignmentId) {
+        res.status(400).json({ error: 'Course ID and Assignment ID are required' })
+        return
+      }
+
+      // Get Moodle service for user
+      const moodleService = await MoodleService.getServiceForUser(user.id!)
+      if (!moodleService) {
+        res.status(401).json({ error: 'No Moodle account linked' })
+        return
+      }
+
+      // Get all assignments and find the requested one
+      const allAssignments = await moodleService.getAllAssignments()
+      console.log(allAssignments)
+      const assignment = allAssignments.find(
+        (a: any) =>
+          a.course?.toString() === courseId.toString() &&
+          a.id?.toString() === assignmentId.toString(),
+      )
+
+      if (!assignment) {
+        res.status(404).json({ error: 'Assignment not found in Moodle' })
+        return
+      }
+
+      // Adapt response to unified format
+      const now = Math.floor(Date.now() / 1000)
+      let status: 'assigned' | 'submitted' | 'graded' | 'late' | 'missing' = 'assigned'
+      if (assignment.submission) {
+        if (assignment.submission.status === 'submitted') {
+          status = 'submitted'
+        }
+      } else if (assignment.duedate && assignment.duedate < now) {
+        status = 'late'
+      }
+
+      const assignmentDetails = {
+        id: `moodle_${assignment.course}_${assignment.id}`,
+        title: assignment.name,
+        description: assignment.intro || '',
+        dueDate: assignment.duedate ? new Date(assignment.duedate * 1000).toISOString() : null,
+        dueTime: assignment.duedate
+          ? new Date(assignment.duedate * 1000).toLocaleTimeString('es-ES', {
+              hour: '2-digit',
+              minute: '2-digit',
+            })
+          : null,
+        maxPoints: assignment.grade || null,
+        courseName: assignment.courseName || assignment.courseShortname || 'Sin nombre',
+        courseId: assignment.course.toString(),
+        status,
+        source: 'moodle',
+        submissionStatus: assignment.submission?.status || 'new',
+        allowSubmissionsFromDate: assignment.allowsubmissionsfromdate,
+        cutoffDate: assignment.cutoffdate,
+      }
+
+      res.status(200).json(assignmentDetails)
+    } catch (error) {
+      console.error('Error fetching Moodle assignment details:', error)
+      res.status(500).json({ error: 'Internal Server Error' })
+    }
+  },
+)
 // Get assignment rubric
 studentRouter.get(
   '/homework/:courseId/:courseWorkId/rubric',
