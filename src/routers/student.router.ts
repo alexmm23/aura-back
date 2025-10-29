@@ -1166,6 +1166,99 @@ studentRouter.get(
     }
   },
 )
+
+// Submit Moodle assignment (with or without file)
+studentRouter.post(
+  '/homework/moodle/:courseId/:assignmentId/submit',
+  async (req: Request & { user?: UserAttributes }, res: Response) => {
+    try {
+      const { courseId, assignmentId } = req.params
+      const { text, file } = req.body
+      const { user } = req
+
+      console.log('Received Moodle submission request:', {
+        courseId,
+        assignmentId,
+        hasFile: !!file,
+        hasText: !!text,
+      })
+
+      if (!user) {
+        res.status(401).json({ error: 'Unauthorized' })
+        return
+      }
+
+      if (!courseId || !assignmentId) {
+        res.status(400).json({ error: 'Course ID and Assignment ID are required' })
+        return
+      }
+
+      // Get Moodle service for user
+      const moodleService = await MoodleService.getServiceForUser(user.id!)
+      if (!moodleService) {
+        res.status(401).json({ error: 'No Moodle account linked' })
+        return
+      }
+
+      // Prepare submission data
+      const submissionData: {
+        onlinetext?: string
+        files?: Array<{ filename: string; content: string; mimeType: string }>
+      } = {}
+
+      // Add text if provided
+      if (text) {
+        submissionData.onlinetext = text
+      }
+
+      // Add file if provided
+      if (file && file.data) {
+        console.log('Processing file for Moodle:', {
+          name: file.name,
+          mimeType: file.mimeType,
+          size: file.size,
+        })
+
+        // Validate file size (limit to 25MB)
+        if (file.size && file.size > 25 * 1024 * 1024) {
+          res.status(413).json({
+            error: 'File too large. Maximum size allowed is 25MB',
+            maxSize: '25MB',
+            receivedSize: `${Math.round(file.size / 1024 / 1024)}MB`,
+          })
+          return
+        }
+
+        submissionData.files = [
+          {
+            filename: file.name,
+            content: file.data, // Base64 string
+            mimeType: file.mimeType,
+          },
+        ]
+      }
+
+      // Submit to Moodle
+      const result = await moodleService.submitAssignment(parseInt(assignmentId), submissionData)
+
+      res.status(200).json({
+        success: true,
+        message: 'Moodle assignment submitted successfully',
+        assignmentId,
+        courseId,
+        text: text || null,
+        fileName: file?.name || null,
+        itemid: result.itemid,
+      })
+    } catch (error: any) {
+      console.error('Error submitting Moodle assignment:', error)
+      res.status(500).json({
+        error: 'Failed to submit Moodle assignment',
+        details: error.message,
+      })
+    }
+  },
+)
 // Get assignment rubric
 studentRouter.get(
   '/homework/:courseId/:courseWorkId/rubric',
