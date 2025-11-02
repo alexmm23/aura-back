@@ -37,22 +37,24 @@ export class MoodleService {
   /**
    * Login to Moodle and get token
    */
-  static async login(loginData: MoodleLoginRequest): Promise<MoodleLoginResponse> {
+  static async login(loginData: MoodleLoginRequest, role: string): Promise<MoodleLoginResponse> {
     try {
       const baseUrl = loginData.moodle_url.endsWith('/')
         ? loginData.moodle_url.slice(0, -1)
         : loginData.moodle_url
       console.log('Attempting Moodle login at:', baseUrl)
+      const service = role === 'alumno' ? 'moodle_mobile_app' : 'ts'
+      
       const response = await axios.post(
         `${baseUrl}/login/token.php`,
         new URLSearchParams({
           username: loginData.username,
           password: loginData.password,
-          service: 'moodle_mobile_app',
+          service: service,
         }),
         {
           headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
+        'Content-Type': 'application/x-www-form-urlencoded',
           },
         },
       )
