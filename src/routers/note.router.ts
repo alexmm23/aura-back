@@ -2,11 +2,13 @@ import { Router } from 'express'
 import multer from 'multer'
 import sharp from 'sharp'
 import path from 'path'
+import fs from 'fs'
 import { fileURLToPath } from 'url'
 import { authenticateToken } from '@/middlewares/auth.middleware'
 import { saveCompressedPngImage } from '@/services/sendnote.service'
 import { getNotesByNotebookId, getNotesByUserId, getNoteById } from '@/services/note.service'
 import Page from '@/models/pages.model'
+import Content from '@/models/content.model'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -275,6 +277,66 @@ router.post('/images/compress', authenticateToken, upload.single('image'), async
     })
   } catch (error: any) {
     console.error('Error compressing image:', error)
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    })
+  }
+})
+
+router.delete('/delete/:id', authenticateToken, async (req, res) => {
+  try {
+    const noteId = Number(req.params.id)
+    const userId = req.user?.id
+
+    if (!userId) {
+      res.status(401).json({
+        success: false,
+        error: 'User not authenticated',
+      })
+      return
+    }
+
+    if (!noteId) {
+      res.status(400).json({
+        success: false,
+        error: 'Invalid note ID',
+      })
+      return
+    }
+
+    // Buscar el contenido/nota
+    const content = await Content.findByPk(noteId)
+
+    if (!content) {
+      res.status(404).json({
+        success: false,
+        error: 'Note not found',
+      })
+      return
+    }
+
+    // Si es una imagen, eliminar el archivo físico
+    if (content.type === 'image' && content.data) {
+      try {
+        const imagePath = path.join(__dirname, '../../storage/images', path.basename(content.data))
+        if (fs.existsSync(imagePath)) {
+          fs.unlinkSync(imagePath)
+        }
+      } catch (error) {
+        console.error('Error deleting image file:', error)
+      }
+    }
+
+    // Eliminar el registro de la base de datos
+    await content.destroy()
+
+    res.status(200).json({
+      success: true,
+      message: 'Note deleted successfully',
+    })
+  } catch (error: any) {
+    console.error('Error deleting note:', error)
     res.status(500).json({
       success: false,
       error: error.message,

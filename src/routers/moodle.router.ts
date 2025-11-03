@@ -34,9 +34,10 @@ moodleRouter.post(
         })
         return
       }
+      const role = user.role_id === 1 ? 'administrador' : user.role_id === 2 ? 'profesor' : 'alumno'
 
       // Login to Moodle
-      const moodleResponse = await MoodleService.login(loginData)
+      const moodleResponse = await MoodleService.login(loginData, role)
 
       // Save to user_accounts
       await MoodleService.saveMoodleAccount(user.id!, moodleResponse, loginData.moodle_url)
