@@ -152,14 +152,14 @@ export const getClassroomAssignments = async (accessToken: string) => {
             if (!a.dueDate && !b.dueDate) return 0
             if (!a.dueDate) return 1
             if (!b.dueDate) return -1
-            
+
             // Ensure all date components exist before creating Date objects
             if (!a.dueDate.year || !a.dueDate.month || !a.dueDate.day) return 1
             if (!b.dueDate.year || !b.dueDate.month || !b.dueDate.day) return -1
-            
+
             const dateA = new Date(a.dueDate.year, a.dueDate.month - 1, a.dueDate.day)
             const dateB = new Date(b.dueDate.year, b.dueDate.month - 1, b.dueDate.day)
-            
+
             return dateB.getTime() - dateA.getTime()
           })
           .slice(0, 5)
@@ -1029,7 +1029,9 @@ export const listCourses = async (accessToken: string) => {
   const classroom = google.classroom({ version: 'v1', auth: oauth2Client })
 
   try {
-    const response = await classroom.courses.list()
+    const response = await classroom.courses.list({
+      courseStates: ['ACTIVE'],
+    })
     return response.data.courses || []
   } catch (error: any) {
     console.error('Error listing courses:', error)

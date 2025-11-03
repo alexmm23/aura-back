@@ -6,6 +6,7 @@ import { authRouter } from './routers/auth.router.js'
 import { googleAuthRouter } from './routers/googleAuth.router.js'
 import cors from 'cors'
 import { studentRouter } from './routers/student.router.js'
+import { teacherRouter } from './routers/teacher.router.js'
 import env from './config/enviroment.js'
 import oauthRouter from './routers/oauth.router.js'
 import teamsRouter from './routers/teams.router.js'
@@ -92,6 +93,7 @@ const routes = [
   { path: `${API_BASE_PATH}/auth`, router: authRouter },
   { path: `${API_BASE_PATH}`, router: googleAuthRouter },
   { path: `${API_BASE_PATH}/student`, router: studentRouter },
+  { path: `${API_BASE_PATH}/teacher`, router: teacherRouter },
   { path: `${API_BASE_PATH}/oauth`, router: oauthRouter },
   { path: `${API_BASE_PATH}/teams`, router: teamsRouter },
   { path: `${API_BASE_PATH}/notebook`, router: notebookRouter },
