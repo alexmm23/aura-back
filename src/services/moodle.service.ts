@@ -410,4 +410,53 @@ export class MoodleService {
       throw new Error('Failed to get courses from Moodle')
     }
   }
+
+  /**
+   * Get course announcements/forum posts
+   */
+  async getCourseAnnouncements(courseId: number): Promise<any[]> {
+    try {
+      // Get forum discussions from the course
+      const data = await this.callMoodleAPI('mod_forum_get_forums_by_courses', {
+        'courseids[0]': courseId,
+      })
+
+      if (!data || data.length === 0) {
+        return []
+      }
+
+      // Get discussions for each forum
+      const allAnnouncements = []
+      for (const forum of data) {
+        try {
+          const discussions = await this.callMoodleAPI('mod_forum_get_forum_discussions', {
+            forumid: forum.id,
+          })
+
+          if (discussions && discussions.discussions) {
+            const formattedDiscussions = discussions.discussions.map((disc: any) => ({
+              id: disc.id,
+              name: disc.name,
+              message: disc.message,
+              created: disc.created,
+              modified: disc.modified,
+              usermodified: disc.usermodified,
+              timemodified: disc.timemodified,
+              userid: disc.userid,
+              forumid: forum.id,
+              forumname: forum.name,
+            }))
+            allAnnouncements.push(...formattedDiscussions)
+          }
+        } catch (error) {
+          console.warn(`Could not get discussions for forum ${forum.id}:`, error)
+        }
+      }
+
+      return allAnnouncements
+    } catch (error: any) {
+      console.error('Error getting announcements:', error)
+      throw new Error('Failed to get announcements from Moodle')
+    }
+  }
 }

@@ -444,4 +444,57 @@ moodleRouter.get(
     }
   },
 )
+
+// GET /moodle/courses/:courseId/announcements - Get announcements/posts from a Moodle course
+moodleRouter.get(
+  '/courses/:courseId/announcements',
+  authenticateToken,
+  async (req: Request & { user?: UserAttributes }, res: Response) => {
+    try {
+      const { user } = req
+      if (!user) {
+        res.status(401).json({
+          success: false,
+          error: 'Unauthorized',
+        })
+        return
+      }
+
+      const courseId = parseInt(req.params.courseId)
+      if (isNaN(courseId)) {
+        res.status(400).json({
+          success: false,
+          error: 'Invalid course ID',
+        })
+        return
+      }
+
+      const moodleService = await MoodleService.getServiceForUser(user.id!)
+
+      if (!moodleService) {
+        res.status(404).json({
+          success: false,
+          error: 'Moodle account not connected. Please login first.',
+        })
+        return
+      }
+
+      // Get forum discussions (Moodle's equivalent to announcements)
+      const announcements = await moodleService.getCourseAnnouncements(courseId)
+
+      res.status(200).json({
+        success: true,
+        data: announcements,
+        count: announcements.length,
+      })
+    } catch (error: any) {
+      console.error('Error getting Moodle announcements:', error)
+      res.status(500).json({
+        success: false,
+        error: error.message || 'Failed to get announcements from Moodle',
+      })
+    }
+  },
+)
+
 export { moodleRouter }
