@@ -339,19 +339,22 @@ forumRouter.post(
           if (!name || !type || !data) {
             throw new Error(`Attachment at index ${index} is missing name, type or data`)
           }
-          const uploadDir = path.join(__dirname, '../../storage/forums/uploads')
+          const storagePath = '/storage/forums/uploads/'
+          const uploadDir = path.join(__dirname, '../..', storagePath)
           if (!existsSync(uploadDir)) {
-            console.log(uploadDir)
             mkdirSync(uploadDir, { recursive: true })
           }
 
-          const filePath = path.join(uploadDir, `${name}-${Date.now()}.${type.split('/')[1]}`)
+          const ext = type.split('/')[1] || 'bin'
+          const filename = `${name}-${Date.now()}.${ext}`
+          const filePath = path.join(uploadDir, filename)
           writeFileSync(filePath, Buffer.from(data, 'base64'))
 
+          // Only return the short path for data
           return {
             name,
             type,
-            data: filePath,
+            data: `${storagePath}${filename}`,
           }
         }) ?? []
 
