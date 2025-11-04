@@ -3,8 +3,7 @@
 /classroom_web_credentials.json
 /google_credentials.json
 /dist
-/storage/images/*
-
+/storage/*
 # Netlify
 .netlify/
 
