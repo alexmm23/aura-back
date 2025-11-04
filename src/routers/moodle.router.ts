@@ -34,7 +34,7 @@ moodleRouter.post(
         })
         return
       }
-      const role = user.role_id === 1 ? 'administrador' : user.role_id === 2 ? 'profesor' : 'alumno'
+      const role = user.role_id === 1 ? 'administrador' : user.role_id === 2 ? 'alumno' : 'profesor'
 
       // Login to Moodle
       const moodleResponse = await MoodleService.login(loginData, role)

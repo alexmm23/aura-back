@@ -6,6 +6,7 @@ import { UserAccount } from '@/models/userAccount.model'
 import { getNewAccessToken } from '@/services/googleAuth.service'
 import { MoodleService } from '@/services/moodle.service'
 import { listCourses } from '@/services/classroom.service'
+import axios from 'axios'
 
 const teacherRouter = Router()
 
@@ -288,7 +289,7 @@ teacherRouter.post(
 
       // Call Moodle API directly using the service's callMoodleAPI method
       // Since callMoodleAPI is private, we'll use axios directly
-      const axios = require('axios')
+
       const response = await axios.post(
         `${moodleService.baseUrl}/webservice/rest/server.php`,
         new URLSearchParams({

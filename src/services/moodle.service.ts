@@ -44,7 +44,7 @@ export class MoodleService {
         : loginData.moodle_url
       console.log('Attempting Moodle login at:', baseUrl)
       const service = role === 'alumno' ? 'moodle_mobile_app' : 'ts'
-      
+
       const response = await axios.post(
         `${baseUrl}/login/token.php`,
         new URLSearchParams({
@@ -54,7 +54,7 @@ export class MoodleService {
         }),
         {
           headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
+            'Content-Type': 'application/x-www-form-urlencoded',
           },
         },
       )
@@ -128,7 +128,7 @@ export class MoodleService {
       const accountData = {
         user_id: userId,
         platform: 'moodle',
-        provider_account_id: moodleData.user_id.toString(),
+        provider_account_id: moodleData.user_id?.toString() || '',
         access_token: moodleData.token,
         refresh_token: moodleData.privatetoken || null,
         expiry_date: null, // Moodle tokens don't expire by default
