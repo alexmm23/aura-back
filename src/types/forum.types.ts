@@ -117,10 +117,11 @@ export interface CreatePostRequest {
   title: string
   description: string
   allow_responses?: boolean
+  links?: string[]
   attachments?: {
-    file_name: string
-    file_url: string
-    file_type: 'image' | 'document' | 'video' | 'link' | 'other'
+    name: string
+    data: string
+    type: 'image' | 'document' | 'video' | 'link' | 'other'
     file_size?: number
   }[]
 }

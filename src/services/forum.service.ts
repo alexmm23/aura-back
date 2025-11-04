@@ -367,16 +367,19 @@ export const createPost = async (
     // Crear attachments si existen
     if (postData.attachments && postData.attachments.length > 0) {
       await Promise.all(
-        postData.attachments.map((attachment) =>
-          ForumAttachment.create({
+        postData.attachments.map((attachment) => {
+          const fileType =
+            attachment.type.split('/')[0] ||
+            ('other' as 'image' | 'document' | 'video' | 'link' | 'other')
+          return ForumAttachment.create({
             post_id: newPost.getDataValue('id'),
             user_id: userId,
-            file_name: attachment.file_name,
-            file_url: attachment.file_url,
-            file_type: attachment.file_type,
+            file_name: attachment.name,
+            file_url: attachment.data,
+            file_type: fileType,
             file_size: attachment.file_size,
-          }),
-        ),
+          })
+        }),
       )
     }
 

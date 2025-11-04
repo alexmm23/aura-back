@@ -20,6 +20,9 @@ import {
   deleteComment,
   deleteAttachment,
 } from '@/services/forum.service'
+import path from 'path'
+import { fileURLToPath } from 'url'
+import { existsSync, mkdirSync, writeFileSync } from 'fs'
 import {
   CreateForumRequest,
   CreatePostRequest,
@@ -30,6 +33,9 @@ import {
 } from '@/types/forum.types'
 
 const forumRouter = Router()
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 
 // ==================== FORUM ROUTES ====================
 
@@ -277,7 +283,6 @@ forumRouter.get('/posts/:id', async (req: Request, res: Response) => {
     })
   }
 })
-
 // POST /forums/:forumId/posts - Crear nuevo post (requiere autenticación)
 forumRouter.post(
   '/:forumId/posts',
@@ -302,18 +307,63 @@ forumRouter.post(
         return
       }
 
-      const postData: CreatePostRequest = {
-        ...req.body,
-        forum_id: forumId,
-      }
+      const { title, description, allowResponses, links, attachments } = req.body ?? {}
 
-      // Validaciones básicas
-      if (!postData.title || !postData.description) {
+      if (!title || !description) {
         res.status(400).json({
           success: false,
           error: 'Title and description are required',
         })
         return
+      }
+
+      if (links && !Array.isArray(links)) {
+        res.status(400).json({
+          success: false,
+          error: 'Links must be an array',
+        })
+        return
+      }
+
+      if (attachments && !Array.isArray(attachments)) {
+        res.status(400).json({
+          success: false,
+          error: 'Attachments must be an array',
+        })
+        return
+      }
+
+      const normalizedAttachments =
+        attachments?.map((attachment: any, index: number) => {
+          const { name, type, data } = attachment ?? {}
+          if (!name || !type || !data) {
+            throw new Error(`Attachment at index ${index} is missing name, type or data`)
+          }
+          const uploadDir = path.join(__dirname, '../../storage/forums/uploads')
+          if (!existsSync(uploadDir)) {
+            console.log(uploadDir)
+            mkdirSync(uploadDir, { recursive: true })
+          }
+
+          const filePath = path.join(uploadDir, `${name}-${Date.now()}.${type.split('/')[1]}`)
+          writeFileSync(filePath, Buffer.from(data, 'base64'))
+
+          return {
+            name,
+            type,
+            data: filePath,
+          }
+        }) ?? []
+
+      console.log()
+
+      const postData: CreatePostRequest = {
+        forum_id: forumId,
+        title,
+        description,
+        allow_responses: allowResponses ?? true,
+        links: links ?? [],
+        attachments: normalizedAttachments,
       }
 
       const newPost = await createPost(postData, user.id!)
