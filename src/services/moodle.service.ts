@@ -132,11 +132,11 @@ export class MoodleService {
         access_token: moodleData.token,
         refresh_token: moodleData.privatetoken || null,
         expiry_date: null, // Moodle tokens don't expire by default
-        email: moodleData.email,
-        name: moodleData.fullname,
-        username: moodleData.username,
-        firstname: moodleData.firstname,
-        lastname: moodleData.lastname,
+        email: moodleData.email || 'email',
+        name: moodleData.fullname || 'fullname',
+        username: moodleData.username || 'username',
+        firstname: moodleData.firstname || 'firstname',
+        lastname: moodleData.lastname || 'lastname',
         provider_url: moodleUrl, // Guardar URL de Moodle directamente,
         password: 'password', // Placeholder password
       }
