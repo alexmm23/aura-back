@@ -171,7 +171,6 @@ export const resetPasswordWithToken = async (token: string, newPassword: string)
   }
 
   // Hash de la nueva contraseña
-  const { hashPassword } = await import('@/services/user.service')
   const hashedPassword = await hashPassword(newPassword)
 
   // Actualizar contraseña del usuario y limpiar tokens de reset
