@@ -26,6 +26,14 @@ import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import env from '../config/enviroment.js'
+import {
+  validateForumTitle,
+  validateForumDescription,
+  validateForumMetadataField,
+  validatePostTitle,
+  validatePostDescription,
+  validateCommentContent,
+} from '../utils/forumValidation.js'
 
 const require = createRequire(import.meta.url)
 const { Op } = require('sequelize')
@@ -151,10 +159,26 @@ export const createForum = async (
   userId: number,
 ): Promise<ForumAttributes> => {
   try {
-    const newForum = await Forum.create({
+    const sanitizedTitle = validateForumTitle(forumData.title)
+    const sanitizedDescription = validateForumDescription(forumData.description)
+    const sanitizedCategory = validateForumMetadataField(forumData.category, 'Forum category')
+    const sanitizedGrade = validateForumMetadataField(forumData.grade, 'Forum grade')
+    const sanitizedSubject = validateForumMetadataField(forumData.subject, 'Forum subject')
+    const sanitizedCareer = validateForumMetadataField(forumData.career, 'Forum career')
+
+    const forumPayload: any = {
       ...forumData,
+      title: sanitizedTitle,
       created_by: userId,
-    })
+    }
+
+    if (sanitizedDescription !== undefined) forumPayload.description = sanitizedDescription
+    if (sanitizedCategory !== undefined) forumPayload.category = sanitizedCategory
+    if (sanitizedGrade !== undefined) forumPayload.grade = sanitizedGrade
+    if (sanitizedSubject !== undefined) forumPayload.subject = sanitizedSubject
+    if (sanitizedCareer !== undefined) forumPayload.career = sanitizedCareer
+
+    const newForum = await Forum.create(forumPayload)
 
     return newForum.toJSON() as ForumAttributes
   } catch (error: any) {
@@ -180,10 +204,67 @@ export const updateForum = async (
       throw new Error('Unauthorized to edit this forum')
     }
 
-    await forum.update({
-      ...forumData,
-      updated_at: new Date(),
-    })
+    const updates: Record<string, any> = {}
+
+    if (forumData.title !== undefined) {
+      updates.title = validateForumTitle(forumData.title)
+    }
+
+    if (forumData.description !== undefined) {
+      const sanitizedDescription = validateForumDescription(forumData.description)
+      updates.description = sanitizedDescription !== undefined ? sanitizedDescription : null
+    }
+
+    if (forumData.category !== undefined) {
+      const sanitizedCategory = validateForumMetadataField(
+        forumData.category,
+        'Forum category',
+      )
+      if (sanitizedCategory !== undefined) {
+        updates.category = sanitizedCategory
+      } else if (forumData.category === null) {
+        updates.category = null
+      }
+    }
+
+    if (forumData.grade !== undefined) {
+      const sanitizedGrade = validateForumMetadataField(forumData.grade, 'Forum grade')
+      if (sanitizedGrade !== undefined) {
+        updates.grade = sanitizedGrade
+      } else if (forumData.grade === null) {
+        updates.grade = null
+      }
+    }
+
+    if (forumData.subject !== undefined) {
+      const sanitizedSubject = validateForumMetadataField(
+        forumData.subject,
+        'Forum subject',
+      )
+      if (sanitizedSubject !== undefined) {
+        updates.subject = sanitizedSubject
+      } else if (forumData.subject === null) {
+        updates.subject = null
+      }
+    }
+
+    if (forumData.career !== undefined) {
+      const sanitizedCareer = validateForumMetadataField(forumData.career, 'Forum career')
+      if (sanitizedCareer !== undefined) {
+        updates.career = sanitizedCareer
+      } else if (forumData.career === null) {
+        updates.career = null
+      }
+    }
+
+    if (forumData.is_active !== undefined) {
+      updates.is_active = forumData.is_active
+    }
+
+    if (Object.keys(updates).length > 0) {
+      updates.updated_at = new Date()
+      await forum.update(updates)
+    }
 
     return forum.toJSON() as ForumAttributes
   } catch (error: any) {
@@ -355,14 +436,22 @@ export const createPost = async (
       throw new Error('Forum not found')
     }
 
+    const sanitizedTitle = validatePostTitle(postData.title)
+    const sanitizedDescription = validatePostDescription(postData.description)
+
     // Crear el post
-    const newPost = await ForumPost.create({
+    const postPayload: Record<string, any> = {
       forum_id: postData.forum_id,
-      title: postData.title,
-      description: postData.description,
+      title: sanitizedTitle,
       user_id: userId,
       allow_responses: postData.allow_responses ?? true,
-    })
+    }
+
+    if (sanitizedDescription !== undefined) {
+      postPayload.description = sanitizedDescription
+    }
+
+    const newPost = await ForumPost.create(postPayload)
 
     // Crear attachments si existen
     if (postData.attachments && postData.attachments.length > 0) {
@@ -409,10 +498,25 @@ export const updatePost = async (
       throw new Error('Unauthorized to edit this post')
     }
 
-    await post.update({
-      ...postData,
-      updated_at: new Date(),
-    })
+    const updates: Record<string, any> = {}
+
+    if (postData.title !== undefined) {
+      updates.title = validatePostTitle(postData.title)
+    }
+
+    if (postData.description !== undefined) {
+      const sanitizedDescription = validatePostDescription(postData.description)
+      updates.description = sanitizedDescription !== undefined ? sanitizedDescription : null
+    }
+
+    if (postData.allow_responses !== undefined) {
+      updates.allow_responses = postData.allow_responses
+    }
+
+    if (Object.keys(updates).length > 0) {
+      updates.updated_at = new Date()
+      await post.update(updates)
+    }
 
     const updatedPost = await getPostById(id)
     return updatedPost
@@ -586,11 +690,13 @@ export const createComment = async (
       }
     }
 
+    const sanitizedContent = validateCommentContent(commentData.content)
+
     // Crear el comentario
     const newComment = await ForumComment.create({
       post_id: commentData.post_id,
       user_id: userId,
-      content: commentData.content,
+      content: sanitizedContent,
       parent_comment_id: commentData.parent_comment_id || null,
     })
 
@@ -710,8 +816,10 @@ export const updateComment = async (
       throw new Error('Unauthorized to edit this comment')
     }
 
+    const sanitizedContent = validateCommentContent(content)
+
     await comment.update({
-      content,
+      content: sanitizedContent,
       updated_at: new Date(),
     })
 

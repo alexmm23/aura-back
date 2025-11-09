@@ -65,9 +65,6 @@ router.post(
             }
 
             const ocrResult = await processImageOCR(imagePath)
-            console.log(
-              `OCR resultado para content_id ${contentId}:`, ocrResult
-            )
 
             results.push({
               content_id: contentId,
