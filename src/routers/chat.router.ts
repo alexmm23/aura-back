@@ -3,6 +3,7 @@ import { ChatService } from '../services/chat.service.js'
 import { authenticateToken } from '../middlewares/auth.middleware.js'
 import { UserAttributes } from '../types/user.types.js'
 import { CreateChatRequest, CreateMessageRequest } from '../types/chat.types.js'
+import { validateMessage } from '../utils/messageValidation.js'
 
 const router = Router()
 
@@ -198,15 +199,23 @@ router.post(
         return
       }
 
-      if (content.length > 5000) {
-        res.status(400).json({
-          error: 'El mensaje no puede exceder 5000 caracteres',
+      // ✅ VALIDACIÓN: Caracteres, longitud y palabras altisonantes
+      const validation = validateMessage(content)
+      console.log('Validación de mensaje:', validation)
+      console.log('mensaje original:', content)
+      if (!validation.valid) {
+        res.status(400).json({ 
+          error: validation.error,
+          code: 'INVALID_MESSAGE'
         })
         return
       }
 
+      // Usar el mensaje limpio (sin espacios extra ni caracteres invisibles)
+      const cleanedContent = validation.cleaned!
+
       const message = await ChatService.createMessage({
-        content: content.trim(),
+        content: cleanedContent,
         chat_id: Number(chatId),
         sender_id: userId,
       })

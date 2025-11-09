@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken'
 import env from '../config/enviroment.js'
 import { ChatService } from './chat.service.js'
 import { ChatStatus, SendMessageRequest, ChatSocketEvents } from '../types/chat.types.js'
+import { validateMessage } from '../utils/messageValidation.js'
 
 export class WebSocketService {
   private io: SocketIOServer
@@ -206,9 +207,26 @@ export class WebSocketService {
     try {
       const userId = socket.data.userId
 
-      // Crear mensaje usando el servicio
+      // ✅ VALIDACIÓN: Caracteres, longitud y palabras altisonantes
+      const validation = validateMessage(data.content)
+      
+      if (!validation.valid) {
+        // Enviar error específico al cliente
+        socket.emit('message_error', {
+          error: validation.error,
+          code: 'INVALID_MESSAGE',
+          chatId: data.chat_id,
+        })
+        console.log(`Mensaje rechazado de usuario ${userId}: ${validation.error}`)
+        return
+      }
+
+      // Usar el mensaje limpio (sin espacios extra ni caracteres invisibles)
+      const cleanedContent = validation.cleaned!
+
+      // Crear mensaje usando el servicio con contenido limpio
       const message = await ChatService.createMessage({
-        content: data.content,
+        content: cleanedContent,
         chat_id: data.chat_id,
         sender_id: userId,
       })
