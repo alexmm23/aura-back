@@ -18,12 +18,14 @@ export class MoodleService {
   public baseUrl: string
   private token: string
   private axiosInstance: AxiosInstance
+  private userId?: number
 
   constructor(config: MoodleConfig) {
     this.baseUrl = config.moodle_url.endsWith('/')
       ? config.moodle_url.slice(0, -1)
       : config.moodle_url
     this.token = config.token
+    this.userId = config.user_id
 
     this.axiosInstance = axios.create({
       baseURL: `${this.baseUrl}/webservice/rest/server.php`,
@@ -32,6 +34,24 @@ export class MoodleService {
         'Content-Type': 'application/x-www-form-urlencoded',
       },
     })
+  }
+
+  /**
+   * Get current user's Moodle user ID
+   */
+  async getCurrentUserId(): Promise<number> {
+    if (this.userId) {
+      return this.userId
+    }
+
+    try {
+      const userInfo = await this.callMoodleAPI('core_webservice_get_site_info')
+      this.userId = userInfo.userid
+      return userInfo.userid
+    } catch (error: any) {
+      console.error('Error getting current user ID:', error)
+      throw new Error('Failed to get current user ID from Moodle')
+    }
   }
 
   /**
@@ -253,17 +273,34 @@ export class MoodleService {
   async getAllAssignments(): Promise<MoodleAssignment[]> {
     try {
       const allAssignments: MoodleAssignment[] = []
+      const moodleUserId = await this.getCurrentUserId()
+      
       try {
         const assignments = await this.getCourseAssignments(0)
-        console.log('Assignments retrieved for course 0:', assignments)
+        const assignmentsWithStatus = await Promise.all(
+          assignments.map(async (assignment) => {
+            try {
+              const submissionStatus = await this.getSubmissionStatus(assignment.id, moodleUserId)
+              
+              const submission = submissionStatus?.lastattempt?.submission
+              
+              return {
+                ...assignment,
+                submission: submission || undefined,
+              }
+            } catch (error) {
+              console.warn(`Could not get submission status for assignment ${assignment.id}:`, error)
+              return {
+                ...assignment,
+                submission: undefined,
+              }
+            }
+          })
+        )
 
-        // Add course info to each assignment
-        const assignmentsWithCourse = assignments.map((assignment) => ({
-          ...assignment,
-        }))
-        allAssignments.push(...assignmentsWithCourse)
+        allAssignments.push(...assignmentsWithStatus)
       } catch (error) {
-        console.error(`Error getting assignments for course 0:`, error)
+        console.error(`Error getting assignments:`, error)
       }
 
       return allAssignments
@@ -276,11 +313,12 @@ export class MoodleService {
   /**
    * Get submission status for an assignment
    */
-  async getSubmissionStatus(assignmentId: number): Promise<any> {
+  async getSubmissionStatus(assignmentId: number, userId?: number): Promise<any> {
     try {
-      const data = await this.callMoodleAPI('mod_assign_get_submission_status', {
+      const params: any = {
         assignid: assignmentId,
-      })
+      }
+      const data = await this.callMoodleAPI('mod_assign_get_submission_status', params)
 
       return data
     } catch (error: any) {
