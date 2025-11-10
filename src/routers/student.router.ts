@@ -792,7 +792,7 @@ studentRouter.post(
                 text: text || null,
                 fileInfo: uploadResult.fileInfo,
                 instructions: uploadResult.instructions,
-                note: 'Due to API restrictions, please submit this assignment manually in Google Classroom using the provided link.',
+                note: 'Debido a restricciones de la API, por favor envíe esta tarea manualmente en Google Classroom utilizando el enlace proporcionado.',
               })
             } catch (uploadError) {
               console.error('All methods failed:', uploadError)
@@ -801,7 +801,7 @@ studentRouter.post(
                 details:
                   'Google Classroom API permissions are insufficient. Please check Google Cloud Console configuration.',
                 driveFileId: driveFileId,
-                message: 'File was uploaded to Drive but could not be submitted to Classroom',
+                message: 'El archivo se subió a Drive pero no se pudo enviar a Classroom',
               })
             }
           }
@@ -811,13 +811,13 @@ studentRouter.post(
         const result = await turnInAssignment(courseId, courseWorkId, submissionId, accessToken!)
 
         if (!result.success) {
-          res.status(400).json({ error: 'Failed to submit assignment' })
+          res.status(400).json({ error: 'No se pudo enviar la tarea' })
           return
         }
 
         res.status(200).json({
           success: true,
-          message: 'Assignment submitted successfully',
+          message: 'Tarea enviada con éxito',
           submissionId,
           text: text || null,
         })

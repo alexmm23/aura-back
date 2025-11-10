@@ -433,7 +433,7 @@ export const uploadFileOnly = async (
 
     return {
       success: true,
-      message: 'File uploaded and made shareable. Manual submission required.',
+      message: 'Archivo subido y disponible para compartir. Se requiere envío manual.',
       driveFileId,
       fileInfo: {
         id: file.data.id,
@@ -444,10 +444,10 @@ export const uploadFileOnly = async (
         size: file.data.size,
       },
       instructions: [
-        'File has been uploaded to your Google Drive',
-        'File is now publicly shareable',
-        'Copy the link and submit manually in Google Classroom',
-        'Or share the link with your teacher',
+        'El archivo se ha subido a tu Google Drive.',
+        'El archivo ahora es públicamente compartible',
+        'Copia el enlace y envíalo manualmente en Google Classroom',
+        'O comparte el enlace con tu profesor',
       ],
     }
   } catch (error: any) {
