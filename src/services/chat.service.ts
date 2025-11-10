@@ -9,6 +9,7 @@ import {
   MessageWithSender,
 } from '../types/chat.types.js'
 import { Op } from 'sequelize'
+import { sendUnreadMessageNotification } from './notification.service.js'
 
 export class ChatService {
   // ==================== CHAT METHODS ====================
@@ -214,6 +215,28 @@ export class ChatService {
 
       // Actualizar timestamp del chat
       await Chat.update({ updated_at: new Date() }, { where: { id: data.chat_id } })
+
+      const recipientId = chatData.student_id === data.sender_id ? chatData.teacher_id : chatData.student_id
+
+      if (recipientId && recipientId !== data.sender_id && messageWithSender) {
+        const senderName =
+          messageWithSender.sender?.name || messageWithSender.sender?.lastname
+            ? `${messageWithSender.sender?.name ?? ''} ${messageWithSender.sender?.lastname ?? ''}`.trim()
+            : messageWithSender.sender?.email
+
+        try {
+          await sendUnreadMessageNotification({
+            userId: recipientId,
+            chatId: data.chat_id,
+            messageId: messageWithSender.id,
+            senderId: data.sender_id,
+            senderName,
+            content: messageWithSender.content,
+          })
+        } catch (notificationError) {
+          console.error('Failed to send chat notification:', notificationError)
+        }
+      }
 
       return messageWithSender!.dataValues
     } catch (error) {

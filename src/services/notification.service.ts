@@ -6,6 +6,7 @@ import { User } from '@/models/user.model'
 import { ReminderWithUser } from '@/types/reminder.types'
 import {
   AssignmentNotificationPayload,
+  ChatMessageNotificationPayload,
   NotificationPayload,
   RegisterPushTokenRequest,
 } from '@/types/notifications.types'
@@ -371,6 +372,31 @@ export const syncAssignmentSnapshots = async (
   }
 
   return { created, updated }
+}
+
+const truncateMessage = (value: string, maxLength: number): string => {
+  if (value.length <= maxLength) return value
+  return `${value.slice(0, maxLength - 1)}…`
+}
+
+export const sendUnreadMessageNotification = async (
+  payload: ChatMessageNotificationPayload,
+) => {
+  const snippet = truncateMessage(payload.content.trim(), 120)
+  const senderLabel = payload.senderName?.trim() || 'Nuevo mensaje'
+
+  await sendNotificationToUser({
+    userId: payload.userId,
+    title: senderLabel,
+    body: snippet || 'Tienes un nuevo mensaje sin leer',
+    data: {
+      type: 'chat_message',
+      chatId: payload.chatId,
+      messageId: payload.messageId,
+      senderId: payload.senderId,
+    },
+    priority: 'high',
+  })
 }
 
 export const deactivateTokensForUser = async (userId: number) => {

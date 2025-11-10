@@ -24,6 +24,7 @@ export type NotificationCategory =
   | 'reminder_due'
   | 'reminder_upcoming'
   | 'assignment_new'
+  | 'chat_message'
   | 'general'
 
 export interface AssignmentNotificationPayload {
@@ -33,4 +34,13 @@ export interface AssignmentNotificationPayload {
   title: string
   courseName?: string
   dueDate?: Date | null
+}
+
+export interface ChatMessageNotificationPayload {
+  userId: number
+  chatId: number
+  messageId: number
+  senderId: number
+  senderName?: string | null
+  content: string
 }
