@@ -23,6 +23,7 @@ import { UserAccount } from '@/models/userAccount.model'
 import { getNewAccessToken } from '@/services/googleAuth.service'
 import { MoodleService } from '@/services/moodle.service'
 import { UnifiedAssignment } from '@/types/moodle.types'
+import { syncAssignmentSnapshots } from '@/services/notification.service'
 
 const studentRouter = Router()
 
@@ -505,6 +506,12 @@ studentRouter.get('/homework', async (req: Request & { user?: UserAttributes }, 
     //   })
     //   return
     // }
+
+    try {
+      await syncAssignmentSnapshots(user.id!, allHomework)
+    } catch (error) {
+      console.error('Error syncing assignment snapshots:', error)
+    }
 
     res.status(200).json(allHomework)
   } catch (error) {

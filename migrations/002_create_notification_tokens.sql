@@ -1,0 +1,16 @@
+CREATE TABLE IF NOT EXISTS notification_tokens (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  user_id INT NOT NULL,
+  expo_push_token VARCHAR(255) NOT NULL UNIQUE,
+  device_type VARCHAR(100) NULL,
+  device_name VARCHAR(150) NULL,
+  os_name VARCHAR(100) NULL,
+  os_version VARCHAR(50) NULL,
+  app_version VARCHAR(50) NULL,
+  metadata TEXT NULL,
+  last_used_at DATETIME NULL,
+  is_active TINYINT(1) NOT NULL DEFAULT 1,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_notification_tokens_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

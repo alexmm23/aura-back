@@ -12,6 +12,8 @@ import { ForumAttachment as ForumAttachmentModel } from './forumAttachment.model
 import { Reminder as ReminderModel } from './reminder.model.js'
 import { Chat as ChatModel } from './chat.model.js'
 import { Message as MessageModel } from './message.model.js'
+import { NotificationToken as NotificationTokenModel } from './notificationToken.model.js'
+import { AssignmentSnapshot as AssignmentSnapshotModel } from './assignmentSnapshot.model.js'
 
 // Luego importar las asociaciones (esto configurará las relaciones)
 import './associations.js'
@@ -30,6 +32,8 @@ export const ForumAttachment = ForumAttachmentModel
 export const Reminder = ReminderModel
 export const Chat = ChatModel
 export const Message = MessageModel
+export const NotificationToken = NotificationTokenModel
+export const AssignmentSnapshot = AssignmentSnapshotModel
 
 // Export default para compatibilidad
 export default {
@@ -46,4 +50,6 @@ export default {
   Reminder,
   Chat,
   Message,
+  NotificationToken,
+  AssignmentSnapshot,
 }

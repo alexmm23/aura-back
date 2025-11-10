@@ -10,6 +10,8 @@ import { ForumAttachment } from './forumAttachment.model.js'
 import { Reminder } from './reminder.model.js'
 import { Chat } from './chat.model.js'
 import { Message } from './message.model.js'
+import { NotificationToken } from './notificationToken.model.js'
+import { AssignmentSnapshot } from './assignmentSnapshot.model.js'
 
 // Definir todas las asociaciones aquí para evitar dependencias circulares
 
@@ -127,6 +129,14 @@ Message.belongsTo(User, { foreignKey: 'sender_id', as: 'sender' })
 // User tiene muchos Messages
 User.hasMany(Message, { foreignKey: 'sender_id', as: 'sent_messages' })
 
+// ==================== NOTIFICATION ASSOCIATIONS ====================
+
+NotificationToken.belongsTo(User, { foreignKey: 'user_id', as: 'user' })
+User.hasMany(NotificationToken, { foreignKey: 'user_id', as: 'notification_tokens' })
+
+AssignmentSnapshot.belongsTo(User, { foreignKey: 'user_id', as: 'user' })
+User.hasMany(AssignmentSnapshot, { foreignKey: 'user_id', as: 'assignment_snapshots' })
+
 export {
   Content,
   Page,
@@ -140,4 +150,6 @@ export {
   Reminder,
   Chat,
   Message,
+  NotificationToken,
+  AssignmentSnapshot,
 }
