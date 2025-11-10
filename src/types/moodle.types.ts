@@ -46,6 +46,7 @@ export interface MoodleCourse {
 
 export interface MoodleAssignment {
   id: number
+  cmid: number
   course: number
   courseName?: string
   courseShortname?: string

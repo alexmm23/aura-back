@@ -23,6 +23,7 @@ import { UserAccount } from '@/models/userAccount.model'
 import { getNewAccessToken } from '@/services/googleAuth.service'
 import { MoodleService } from '@/services/moodle.service'
 import { UnifiedAssignment } from '@/types/moodle.types'
+import { syncAssignmentSnapshots } from '@/services/notification.service'
 
 const studentRouter = Router()
 
@@ -397,29 +398,39 @@ studentRouter.get('/homework', async (req: Request & { user?: UserAttributes }, 
       }
     }
 
-    // Get Moodle assignments
+    // Get Moodle assignments - FILTRAR COMPLETADAS
     try {
       const moodleService = await MoodleService.getServiceForUser(user.id!)
-      // console.log('Moodle service for user:', moodleService ? 'Found' : 'Not found')
 
       if (moodleService) {
-        // console.log('Attempting to fetch Moodle assignments...')
         const moodleAssignments = await moodleService.getAllAssignments()
-        // console.log(`Successfully fetched ${moodleAssignments.length} assignments from Moodle`)
+        console.log(`Successfully fetched ${moodleAssignments.length} assignments from Moodle`)
+
+        // 🔥 FILTRAR: Solo tareas NO completadas (status !== 'submitted')
+        const pendingAssignments = moodleAssignments.filter((assignment: any) => {
+          // Si NO tiene submission, está pendiente
+          if (!assignment.submission) {
+            return true
+          }
+          
+          // Si tiene submission pero NO está enviada ('submitted'), está pendiente
+          const submissionStatus = assignment.submission.status
+          const isPending = submissionStatus !== 'submitted'
+          
+          console.log(`Assignment ${assignment.id} - Status: ${submissionStatus}, Pending: ${isPending}`)
+          
+          return isPending
+        })
+
+        console.log(`✅ Filtered Moodle assignments: ${pendingAssignments.length} pending out of ${moodleAssignments.length} total`)
 
         // Transform to unified format
-        const unifiedMoodle: UnifiedAssignment[] = moodleAssignments.map((assignment: any) => {
+        const unifiedMoodle: UnifiedAssignment[] = pendingAssignments.map((assignment: any) => {
           const now = Math.floor(Date.now() / 1000)
           let status: 'assigned' | 'submitted' | 'graded' | 'late' | 'missing' = 'assigned'
 
-          // Determine status based on submission and dates
-          if (assignment.submission) {
-            if (assignment.submission.status === 'submitted') {
-              status = 'submitted'
-            } else if (assignment.submission.status === 'graded') {
-              status = 'graded'
-            }
-          } else if (assignment.duedate && assignment.duedate < now) {
+          // Determine status based on dates
+          if (assignment.duedate && assignment.duedate < now) {
             status = 'late'
           }
 
@@ -439,8 +450,7 @@ studentRouter.get('/homework', async (req: Request & { user?: UserAttributes }, 
             courseId: assignment.course.toString(),
             status,
             source: 'moodle' as const,
-            submissionStatus: assignment.submission?.status || 'new',
-            grade: assignment.submission?.grade || null,
+            submissionStatus: 'new', // Siempre 'new' porque filtramos las completadas
             allowSubmissionsFromDate: assignment.allowsubmissionsfromdate,
             cutoffDate: assignment.cutoffdate,
           }
@@ -496,6 +506,12 @@ studentRouter.get('/homework', async (req: Request & { user?: UserAttributes }, 
     //   })
     //   return
     // }
+
+    try {
+      await syncAssignmentSnapshots(user.id!, allHomework)
+    } catch (error) {
+      console.error('Error syncing assignment snapshots:', error)
+    }
 
     res.status(200).json(allHomework)
   } catch (error) {

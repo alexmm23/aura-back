@@ -18,6 +18,7 @@ import { reminderRouter } from './routers/reminder.router.js'
 import { chatRouter } from './routers/chat.router.js'
 import { auraAiRouter } from './routers/auraAi.router.js'
 import { moodleRouter } from './routers/moodle.router.js'
+import { notificationRouter } from './routers/notification.router.js'
 import path from 'path'
 
 // Importar modelos con asociaciones configuradas
@@ -105,6 +106,7 @@ const routes = [
   { path: `${API_BASE_PATH}/chats`, router: chatRouter },
   { path: `${API_BASE_PATH}/auraai`, router: auraAiRouter },
   { path: `${API_BASE_PATH}/moodle`, router: moodleRouter },
+  { path: `${API_BASE_PATH}/notifications`, router: notificationRouter },
 ]
 
 routes.forEach(({ path, router }) => {

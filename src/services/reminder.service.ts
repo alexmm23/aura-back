@@ -15,6 +15,11 @@ import { createRequire } from 'module'
 import nodemailer from 'nodemailer'
 import env from '@/config/enviroment'
 import { Resend } from 'resend'
+import {
+  sendReminderCreatedNotification,
+  sendReminderDueNotification,
+  sendUpcomingRemindersPush,
+} from './notification.service.js'
 
 const require = createRequire(import.meta.url)
 const { Op } = require('sequelize')
@@ -148,6 +153,7 @@ export const createReminder = async (
     // 🔥 ENVIAR EMAIL DE CONFIRMACIÓN DE CREACIÓN
     if (reminderWithUser) {
       await sendReminderCreatedEmail(reminderWithUser)
+      await sendReminderCreatedNotification(reminderWithUser)
     }
 
     return reminderWithUser!
@@ -469,11 +475,13 @@ export const sendReminderEmail = async (reminderId: number, userId: number): Pro
     })
 
     // Enviar con Resend
-    const result: any = await resend.emails.send(mailOptions)
-    console.log('✅ Email sent successfully:', result.id || 'no-id')
+  const result: any = await resend.emails.send(mailOptions)
+  console.log('✅ Email sent successfully:', result.id || 'no-id')
 
-    // Marcar como enviado
-    await markReminderAsSent(reminderId, userId)
+  await sendReminderDueNotification(reminder)
+
+  // Marcar como enviado
+  await markReminderAsSent(reminderId, userId)
 
     return true
   } catch (error: any) {
@@ -628,6 +636,8 @@ export const sendUpcomingRemindersNotification = async (
       subject: `⏰ Tienes ${upcomingReminders.length} recordatorio(s) próximo(s)`,
       html: emailContent,
     })
+
+    await sendUpcomingRemindersPush(userId, upcomingReminders, hoursAhead)
   } catch (error: any) {
     console.error('Error sending upcoming reminders:', error)
   }
