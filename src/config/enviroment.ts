@@ -60,6 +60,8 @@ const env = {
   DOMAIN: process.env.DOMAIN || 'localhost',
   STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY || '',
   AURA_AI_API_URL: process.env.AURA_AI_API_URL || 'http://localhost:8000',
+  ACCOUNT_DELETION_SECRET:
+    process.env.ACCOUNT_DELETION_SECRET || process.env.JWT_SECRET || 'account-deletion-secret',
 }
 
 export const CORS_ORIGIN = process.env.CORS_ORIGIN || 'http://localhost:8081'
@@ -70,5 +72,6 @@ export const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || ''
 export const GOOGLE_REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI || ''
 export const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY || ''
 export const GOOGLE_DRIVE_CREDENTIALS = process.env.GOOGLE_DRIVE_CREDENTIALS || ''
+export const ACCOUNT_DELETION_SECRET = env.ACCOUNT_DELETION_SECRET
 
 export default env

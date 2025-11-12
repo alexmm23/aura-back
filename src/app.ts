@@ -19,6 +19,7 @@ import { chatRouter } from './routers/chat.router.js'
 import { auraAiRouter } from './routers/auraAi.router.js'
 import { moodleRouter } from './routers/moodle.router.js'
 import { notificationRouter } from './routers/notification.router.js'
+import accountDeletionRouter from './routers/accountDeletion.router.js'
 import path from 'path'
 
 // Importar modelos con asociaciones configuradas
@@ -114,7 +115,13 @@ routes.forEach(({ path, router }) => {
   app.use(path, router)
 })
 
+app.use('/account', accountDeletionRouter)
+console.log('📍 Registering route: /account')
+
 console.log('🚀 All routes registered successfully')
+
+// app.use('/account', accountDeletionRouter)
+// console.log('📍 Registering route: /account')
 
 app.get('/', (req, res) => {
   res.send('Hello World!')

@@ -6,6 +6,8 @@ import { sendEmail } from './email.service.js'
 import { generateRefreshToken, generateToken } from '@/utils/jwt'
 import { createRequire } from 'module'
 import { UserAccount } from '../models/userAccount.model.js'
+import { NotificationToken } from '../models/notificationToken.model.js'
+import { sequelize } from '../config/database.js'
 
 const require = createRequire(import.meta.url)
 const { Op } = require('sequelize')
@@ -170,7 +172,7 @@ export const resetPassword = async (email: string): Promise<void> => {
   }
 }
 
-const generateRandomPassword = (): string => {
+function generateRandomPassword(): string {
   const length = 8
   const charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()'
   let password = ''
@@ -192,6 +194,65 @@ export const cleanExpiredSessions = async (userId: number) => {
       },
     },
   )
+}
+
+export const deleteUserAccount = async (userId: number): Promise<boolean> => {
+  const user = await User.findByPk(userId)
+
+  if (!user) {
+    return false
+  }
+
+  if (user.getDataValue('deleted')) {
+    return true
+  }
+
+  const placeholderPassword = await hashPassword(generateRandomPassword())
+
+  const transaction = await sequelize.transaction()
+
+  try {
+    await NotificationToken.update(
+      { is_active: false, updated_at: new Date() },
+      {
+        where: { user_id: userId },
+        transaction,
+      },
+    )
+
+    await UserSession.update(
+      { is_active: false },
+      {
+        where: { user_id: userId },
+        transaction,
+      },
+    )
+
+    await UserAccount.destroy({
+      where: { user_id: userId },
+      transaction,
+    })
+
+    await user.update(
+      {
+        deleted: true,
+        refresh_token: null,
+        password: placeholderPassword,
+        subscription_status: 'cancelled',
+        subscription_type: 'free',
+        subscription_start: null,
+        subscription_end: new Date(),
+      },
+      { transaction },
+    )
+
+    await transaction.commit()
+    return true
+  } catch (error) {
+    await transaction.rollback()
+    console.error('Error deleting user account:', error)
+    throw new Error('Failed to delete user account')
+  }
 }
 
 // Validar refresh token desde sesiones
