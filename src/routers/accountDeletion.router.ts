@@ -1,8 +1,8 @@
 import { Router, Request, Response } from 'express'
 import jwt, { JwtPayload } from 'jsonwebtoken'
-import env from '@/config/enviroment.js'
-import { deleteUserAccount } from '@/services/user.service.js'
-import { User } from '@/models/user.model.js'
+import env from '@/config/enviroment'
+import { deleteUserAccount } from '@/services/user.service'
+import { User } from '@/models/user.model'
 
 const accountDeletionRouter = Router()
 
