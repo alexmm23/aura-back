@@ -33,7 +33,7 @@ notebookRouter.post('/add', authenticateToken, async (req: Request, res: Respons
       res.status(400).json({ error: 'User ID not found in token' })
       return
     }
-    const existingNotebook = await notebookService.searchByName(title)
+    const existingNotebook = await notebookService.searchByName(title, Number(userId))
     if (existingNotebook) {
       res.status(409).json({ error: 'Notebook with this title already exists' })
       return
