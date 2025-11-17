@@ -15,9 +15,9 @@ export class NotebookService {
     })
   }
 
-  async searchByName(title: string) {
+  async searchByName(title: string, userId: number) {
     return await Notebook.findOne({
-      where: { title: title, deleted: false },
+      where: { title: title, deleted: false, user_id: userId },
     })
   }
 
