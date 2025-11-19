@@ -41,6 +41,9 @@ const { Op } = require('sequelize')
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
+// Solo devolver foros creados después de esta fecha (exclusivo)
+const FORUM_CUTOFF_DATE = new Date('2025-11-17T00:00:00.000Z')
+
 // Helper function para obtener la URL base según el entorno
 const getBaseUrl = (): string => {
   return env.NODE_ENV === 'development' ? 'http://localhost:3000' : 'https://back.aurapp.com.mx'
@@ -64,7 +67,9 @@ const processAttachments = (attachments: any[]): any[] => {
 
 export const getAllForums = async (filters: ForumFilters = {}): Promise<ForumWithDetails[]> => {
   try {
-    const whereConditions: any = {}
+    const whereConditions: any = {
+      created_at: { [Op.gt]: FORUM_CUTOFF_DATE },
+    }
 
     if (filters.category) whereConditions.category = filters.category
     if (filters.grade) whereConditions.grade = filters.grade
@@ -121,7 +126,7 @@ export const getAllForums = async (filters: ForumFilters = {}): Promise<ForumWit
 export const getForumById = async (id: number): Promise<ForumWithDetails | null> => {
   try {
     const forum = await Forum.findOne({
-      where: { id, is_active: true },
+      where: { id, is_active: true, created_at: { [Op.gt]: FORUM_CUTOFF_DATE } },
       include: [
         {
           model: User,
