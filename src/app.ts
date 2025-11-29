@@ -197,50 +197,53 @@ async function processRemindersBackground() {
 // ==================== CRON JOB INTERNO ====================
 // Ejecuta cada minuto para revisar recordatorios pendientes
 
-cron.schedule('* * * * *', async () => {
-  try {
-    console.log('🕐 Internal cron triggered - calling webhook...')
-
-    const webhookUrl = 'https://back.aurapp.com.mx/api/reminders/webhook/check-pending'
-
-    const response = await fetch(webhookUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    })
-
-    if (response.ok) {
-      console.log('✅ Internal cron completed successfully via webhook')
-    } else {
-      throw new Error(`Webhook failed: ${response.status}`)
-    }
-  } catch (error: any) {
-    console.error('❌ Internal cron webhook error:', error)
-  }
-})
-
-console.log('✅ Internal cron job scheduled to run every minute')
-
-// ==================== KEEPALIVE (para evitar sleep) ====================
-// Self-ping cada 10 minutos para mantener la app activa en Railway
-
-const RAILWAY_URL = process.env.RAILWAY_PUBLIC_DOMAIN
-  ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
-  : null
-
-if (RAILWAY_URL) {
-  cron.schedule('*/10 * * * *', async () => {
+// Only run crons if NOT in test environment
+if (process.env.NODE_ENV !== 'test') {
+  cron.schedule('* * * * *', async () => {
     try {
-      const response = await fetch(`${RAILWAY_URL}/health`)
-      console.log('🏓 Keepalive ping successful:', response.status)
-    } catch (error) {
-      console.log('⚠️ Keepalive ping failed (not critical):', error)
+      console.log('🕐 Internal cron triggered - calling webhook...')
+
+      const webhookUrl = 'https://back.aurapp.com.mx/api/reminders/webhook/check-pending'
+
+      const response = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+
+      if (response.ok) {
+        console.log('✅ Internal cron completed successfully via webhook')
+      } else {
+        throw new Error(`Webhook failed: ${response.status}`)
+      }
+    } catch (error: any) {
+      console.error('❌ Internal cron webhook error:', error)
     }
   })
-  console.log('🏓 Keepalive ping scheduled every 10 minutes')
-}
 
-console.log('🔄 Hybrid cron system active: Internal + External backup ready')
+  console.log('✅ Internal cron job scheduled to run every minute')
+
+  // ==================== KEEPALIVE (para evitar sleep) ====================
+  // Self-ping cada 10 minutos para mantener la app activa en Railway
+
+  const RAILWAY_URL = process.env.RAILWAY_PUBLIC_DOMAIN
+    ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
+    : null
+
+  if (RAILWAY_URL) {
+    cron.schedule('*/10 * * * *', async () => {
+      try {
+        const response = await fetch(`${RAILWAY_URL}/health`)
+        console.log('🏓 Keepalive ping successful:', response.status)
+      } catch (error) {
+        console.log('⚠️ Keepalive ping failed (not critical):', error)
+      }
+    })
+    console.log('🏓 Keepalive ping scheduled every 10 minutes')
+  }
+
+  console.log('🔄 Hybrid cron system active: Internal + External backup ready')
+}
 
 export default app
